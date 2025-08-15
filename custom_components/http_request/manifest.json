@@ -2,10 +2,11 @@
   "domain": "http_request",
   "name": "HTTP Request",
   "version": "0.1.0",
-  "documentation": "https://example.invalid/http_request",
-  "requirements": ["jmespath==1.0.1", "beautifulsoup4==4.12.3"],
-  "codeowners": ["@your-handle"],
+  "documentation": "https://github.com/pageskr/ha-http-request",
+  "issue_tracker": "https://github.com/pageskr/ha-http-request/issues",
+  "requirements": ["jmespath==1.0.1", "beautifulsoup4==4.12.3", "lxml==4.9.3"],
+  "codeowners": ["@pageskr"],
   "iot_class": "cloud_polling",
-  "integration_type": "hub",
+  "integration_type": "service",
   "config_flow": true
 }

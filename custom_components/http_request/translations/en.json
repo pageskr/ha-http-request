@@ -3,8 +3,33 @@
   "config": {
     "step": {
       "user": {
-        "title": "Add HTTP Request Sensor"
+        "title": "Add HTTP Request Sensor",
+        "description": "Configure a sensor to fetch data via HTTP request.",
+        "data": {
+          "name": "Sensor name",
+          "method": "HTTP method",
+          "url": "URL",
+          "headers": "Headers (JSON)",
+          "params": "Parameters (JSON)",
+          "body": "Body (JSON)",
+          "timeout": "Timeout (seconds)",
+          "verify_ssl": "Verify SSL certificate",
+          "scan_interval": "Update interval (seconds)",
+          "response_type": "Response type",
+          "json_jmes": "JMESPath expression",
+          "html_selector": "CSS selector",
+          "html_attr": "HTML attribute",
+          "text_regex": "Regular expression",
+          "text_group": "Group number",
+          "value_template": "Value template",
+          "attributes": "Additional attributes (JSON)"
+        }
       }
+    },
+    "error": {
+      "invalid_name": "Please enter a valid name",
+      "invalid_url": "Please enter a valid URL",
+      "unknown": "Unexpected error occurred"
     }
   }
 }

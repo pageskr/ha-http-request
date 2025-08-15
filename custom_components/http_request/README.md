@@ -1,100 +1,85 @@
 # HTTP Request (Home Assistant Custom Integration)
 
-> 기기(Device) 없이, 통합 추가 시 **센서 1개**가 생성됩니다.  
-> 응답 타입에 따라 JSON/HTML/Text를 파싱해 **기본 state**와 **여러 attributes**를 설정할 수 있습니다.
+> HTTP 요청을 통해 외부 데이터를 가져와 센서로 만드는 Home Assistant 커스텀 통합
+
+제작: **Pages in Korea (pages.kr)**  
+GitHub: [https://github.com/pageskr/ha-http-request](https://github.com/pageskr/ha-http-request)
 
 ## 특징
-- 각 엔트리(센서)에 개별 요청 설정: `method`, `url`, `headers`, `params`, `body`, `timeout`, `verify_ssl`, `scan_interval`
-- 응답 타입:
-  - `json`: **JMESPath**로 원하는 객체/값 추출
-  - `html`: **CSS Selector**로 요소 선택 + `text` 또는 특정 속성(`href`, `data-*`) 추출
-  - `text`: **정규식** + `group` 인덱스로 원하는 패턴 추출
-- state + attributes(복수) 모두 동일한 방식으로 추출 가능
-- Device를 만들지 않으며, Entry=Sensor의 1:1 구조
 
-## 설치
-1. `custom_components/http_request/` 디렉토리에 소스 복사
-2. Home Assistant 재시작
-3. 설정 → 통합 → 통합 추가(`HTTP Request`) → 센서 정의
-4. 필요시 여러 번 추가하여 센서를 여러 개 생성
+- **다양한 HTTP 메소드 지원**: GET, POST, PUT, PATCH, DELETE
+- **세 가지 응답 타입 파싱**:
+  - `json`: JMESPath로 JSON 데이터 추출
+  - `html`: CSS Selector로 HTML 요소 선택
+  - `text`: 정규식으로 텍스트 패턴 매칭
+- **Jinja2 템플릿 지원**: 센서 값과 속성을 동적으로 변환
+- **기기 정보 제공**: "HTTP Request" 기기로 센서들을 그룹화
+- **유연한 설정**: 헤더, 파라미터, 본문, 타임아웃, SSL 등
 
-## 설정 항목(추가 화면)
-- **name**: 센서 이름
-- **method**: `GET|POST|PUT|PATCH|DELETE`
-- **url**: 호출할 전체 URL
-- **headers/params/body**: JSON 형태(필요 시 비워둠)
-- **timeout**: 요청 타임아웃(초) (기본 15)
-- **verify_ssl**: SSL 검증 (기본 true)
-- **scan_interval**: 갱신 주기(초) (기본 60, 최소 10)
-- **response_type**: `json|html|text`
+## 기술 사양
 
-### 파싱 옵션
-- `json`:
-  - `json_jmes`: JMESPath 표현식 (예: `data.items[0].value`)
-- `html`:
-  - `html_selector`: CSS 선택자 (예: `div.price > span.value`)
-  - `html_attr`: `text` 또는 속성명 (예: `href`)
-- `text`:
-  - `text_regex`: 정규식 (예: `price:\\s*(\\d+)`)
-  - `text_group`: 캡처 그룹 인덱스 (기본 1)
+### 의존성
+- `jmespath==1.0.1`: JSON 데이터 쿼리
+- `beautifulsoup4==4.12.3`: HTML 파싱
+- `lxml==4.9.3`: 고성능 XML/HTML 파서
 
-### Attributes
-`attributes`는 리스트입니다. 각 항목은 다음 키를 포함합니다.
-
-```yaml
-attributes:
-  - key: "price"
-    response_type: "html"
-    html_selector: "span#nowPrice"
-    html_attr: "text"
-  - key: "version"
-    response_type: "json"
-    json_jmes: "meta.version"
-  - key: "matched"
-    response_type: "text"
-    text_regex: "OK\\s+(\\w+)"
-    text_group: 1
+### 파일 구조
+```
+http_request/
+├── __init__.py          # 통합 초기화
+├── manifest.json        # 통합 메타데이터
+├── const.py            # 상수 정의
+├── config_flow.py      # 설정 UI 플로우
+├── sensor.py           # 센서 엔티티 구현
+├── parser.py           # 파싱 및 템플릿 처리
+├── strings.json        # UI 문자열
+└── translations/       # 다국어 지원
+    ├── en.json
+    └── ko.json
 ```
 
-## 예시 1: JSON API
+## 구현 세부사항
 
-* `response_type=json`, `json_jmes=data.status`
-* attributes:
+### 데이터 업데이트 플로우
+1. `DataUpdateCoordinator`가 설정된 주기로 HTTP 요청 실행
+2. 응답을 설정된 타입(json/html/text)에 따라 파싱
+3. 값 템플릿이 있으면 Jinja2로 변환
+4. 센서 상태 및 속성 업데이트
 
-  * `count`: `json_jmes=data.count`
-  * `p95`: `json_jmes=metrics.latency.p95`
+### 템플릿 변수
+```python
+{
+    "value": 파싱된_원본값,
+    "json": JSON_응답_전체,  # json 타입인 경우
+    "text": 텍스트_응답_전체,
+    "status": HTTP_상태_코드
+}
+```
 
-생성된 센서:
+### 에러 처리
+- 네트워크 오류: `UpdateFailed` 예외 발생
+- 파싱 오류: None 반환 및 로그 기록
+- JSON 파싱 실패: 빈 딕셔너리 반환
 
-* `state` = `data.status`
-* `attributes.count` = 정수
-* `attributes.p95` = 밀리초
+## 보안 고려사항
 
-## 예시 2: HTML 페이지
+1. **SSL 검증**: 기본적으로 활성화
+2. **타임아웃**: 무한 대기 방지
+3. **민감 정보**: secrets.yaml 사용 권장
+4. **입력 검증**: JSON 문자열 파싱시 안전 처리
 
-* `response_type=html`, `html_selector="div.price > span.value"`, `html_attr="text"`
-* attributes:
+## 확장 가능성
 
-  * `currency`: selector `"div.price > span.cur"`, attr `"text"`
-  * `link`: selector `"a.buy"`, attr `"href"`
+- OAuth2 인증 지원
+- 응답 캐싱
+- 재시도 로직
+- GraphQL 지원
+- WebSocket 연결
 
-## 예시 3: 텍스트 응답
+## 라이선스
 
-* `response_type=text`, `text_regex="total:(\\d+)"`, `text_group=1`
-* attributes:
+MIT License - [LICENSE](https://github.com/pageskr/ha-http-request/blob/main/LICENSE) 참조
 
-  * `ok`: regex `"ok:(\\d+)"`, group `1`
-  * `fail`: regex `"fail:(\\d+)"`, group `1`
+---
 
-## 로깅/트러블슈팅
-
-* 센서가 `unavailable`이면 네트워크/인증/SSL 옵션, 정규식/JMESPath/Selector 오류 확인
-* `http_status` attribute로 원격 응답 코드를 확인
-* HTML 파싱 실패 시 selector를 간단히 줄여가며 테스트
-
-## 보안 가이드
-
-* 민감한 헤더/토큰은 `secrets.yaml`에 보관하고 UI 입력 시 최소 권한 토큰 사용
-* 내부망/프록시를 통해 대상 화이트리스트 운용
-* `verify_ssl=true` 유지, 내부 CA는 컨테이너/호스트에 신뢰 저장소 등록
-* 정규식/셀렉터/JMESPath는 신뢰된 응답 구조에 맞게 제한적으로 사용(의도치 않은 데이터 노출 방지)
+© 2024 Pages in Korea (pages.kr). All rights reserved.
