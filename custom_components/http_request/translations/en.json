@@ -1,0 +1,10 @@
+{
+  "title": "HTTP Request",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add HTTP Request Sensor"
+      }
+    }
+  }
+}
