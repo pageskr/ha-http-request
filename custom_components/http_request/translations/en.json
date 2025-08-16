@@ -3,33 +3,56 @@
   "config": {
     "step": {
       "user": {
-        "title": "Add HTTP Request Sensor",
-        "description": "Configure a sensor to fetch data via HTTP request.",
+        "title": "Configure HTTP Request Sensor",
+        "description": "Set up a new HTTP request sensor to fetch data from an API or website.",
         "data": {
-          "name": "Sensor name",
-          "method": "HTTP method",
+          "name": "Name",
+          "method": "Method",
           "url": "URL",
           "headers": "Headers (JSON)",
-          "params": "Parameters (JSON)",
-          "body": "Body (JSON)",
+          "params": "URL Parameters (JSON)",
+          "body": "Request Body (JSON)",
           "timeout": "Timeout (seconds)",
-          "verify_ssl": "Verify SSL certificate",
-          "scan_interval": "Update interval (seconds)",
-          "response_type": "Response type",
-          "json_jmes": "JMESPath expression",
-          "html_selector": "CSS selector",
-          "html_attr": "HTML attribute",
-          "text_regex": "Regular expression",
-          "text_group": "Group number",
-          "value_template": "Value template",
-          "attributes": "Additional attributes (JSON)"
+          "verify_ssl": "Verify SSL Certificate",
+          "scan_interval": "Update Interval (seconds)",
+          "response_type": "Response Type",
+          "json_jmes": "JMESPath Expression",
+          "html_selector": "CSS Selector",
+          "html_attr": "HTML Attribute",
+          "text_regex": "Regular Expression",
+          "text_group": "Regex Group",
+          "value_template": "Value Template",
+          "attributes": "Additional Attributes (JSON)"
+        },
+        "data_description": {
+          "name": "The name of your sensor",
+          "method": "HTTP method to use for the request",
+          "url": "The URL to fetch data from",
+          "headers": "HTTP headers as JSON object, e.g., {\"Authorization\": \"Bearer token\"}",
+          "params": "URL parameters as JSON object, e.g., {\"key\": \"value\"}",
+          "body": "Request body as JSON object for POST/PUT/PATCH requests",
+          "timeout": "How long to wait for a response",
+          "verify_ssl": "Whether to verify SSL certificates",
+          "scan_interval": "How often to fetch new data (minimum 10 seconds)",
+          "response_type": "The format of the response",
+          "json_jmes": "JMESPath expression to extract data from JSON response",
+          "html_selector": "CSS selector to extract data from HTML response",
+          "html_attr": "HTML attribute to extract (use 'text' for element text)",
+          "text_regex": "Regular expression to extract data from text response",
+          "text_group": "Which regex capture group to use",
+          "value_template": "Jinja2 template to transform the extracted value",
+          "attributes": "JSON array of additional attributes to extract"
         }
       }
     },
     "error": {
-      "invalid_name": "Please enter a valid name",
-      "invalid_url": "Please enter a valid URL",
-      "unknown": "Unexpected error occurred"
+      "unknown": "Unexpected error occurred",
+      "invalid_name": "Please provide a valid name",
+      "invalid_url": "Please provide a valid URL",
+      "invalid_json": "Invalid JSON format in one of the fields"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
     }
   }
 }

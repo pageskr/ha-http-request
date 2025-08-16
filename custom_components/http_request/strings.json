@@ -3,33 +3,56 @@
   "config": {
     "step": {
       "user": {
-        "title": "HTTP Request 센서 추가",
-        "description": "HTTP 요청을 통해 데이터를 가져올 센서를 설정합니다.",
+        "title": "Configure HTTP Request Sensor",
+        "description": "Set up a new HTTP request sensor to fetch data from an API or website.",
         "data": {
-          "name": "센서 이름",
-          "method": "HTTP 메소드",
+          "name": "Name",
+          "method": "Method",
           "url": "URL",
-          "headers": "헤더 (JSON)",
-          "params": "파라미터 (JSON)",
-          "body": "본문 (JSON)",
-          "timeout": "타임아웃 (초)",
-          "verify_ssl": "SSL 인증서 검증",
-          "scan_interval": "갱신 주기 (초)",
-          "response_type": "응답 타입",
-          "json_jmes": "JMESPath 표현식",
-          "html_selector": "CSS 선택자",
-          "html_attr": "HTML 속성",
-          "text_regex": "정규식",
-          "text_group": "그룹 번호",
-          "value_template": "값 템플릿",
-          "attributes": "추가 속성 (JSON)"
+          "headers": "Headers (JSON)",
+          "params": "URL Parameters (JSON)",
+          "body": "Request Body (JSON)",
+          "timeout": "Timeout (seconds)",
+          "verify_ssl": "Verify SSL Certificate",
+          "scan_interval": "Update Interval (seconds)",
+          "response_type": "Response Type",
+          "json_jmes": "JMESPath Expression",
+          "html_selector": "CSS Selector",
+          "html_attr": "HTML Attribute",
+          "text_regex": "Regular Expression",
+          "text_group": "Regex Group",
+          "value_template": "Value Template",
+          "attributes": "Additional Attributes (JSON)"
+        },
+        "data_description": {
+          "name": "The name of your sensor",
+          "method": "HTTP method to use for the request",
+          "url": "The URL to fetch data from",
+          "headers": "HTTP headers as JSON object, e.g., {\"Authorization\": \"Bearer token\"}",
+          "params": "URL parameters as JSON object, e.g., {\"key\": \"value\"}",
+          "body": "Request body as JSON object for POST/PUT/PATCH requests",
+          "timeout": "How long to wait for a response",
+          "verify_ssl": "Whether to verify SSL certificates",
+          "scan_interval": "How often to fetch new data (minimum 10 seconds)",
+          "response_type": "The format of the response",
+          "json_jmes": "JMESPath expression to extract data from JSON response",
+          "html_selector": "CSS selector to extract data from HTML response",
+          "html_attr": "HTML attribute to extract (use 'text' for element text)",
+          "text_regex": "Regular expression to extract data from text response",
+          "text_group": "Which regex capture group to use",
+          "value_template": "Jinja2 template to transform the extracted value",
+          "attributes": "JSON array of additional attributes to extract"
         }
       }
     },
     "error": {
-      "invalid_name": "올바른 이름을 입력하세요",
-      "invalid_url": "올바른 URL을 입력하세요",
-      "unknown": "예상치 못한 오류가 발생했습니다"
+      "unknown": "Unexpected error occurred",
+      "invalid_name": "Please provide a valid name",
+      "invalid_url": "Please provide a valid URL",
+      "invalid_json": "Invalid JSON format in one of the fields"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
     }
   }
 }
