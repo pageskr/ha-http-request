@@ -1,7 +1,7 @@
 """Config flow for HTTP Request integration."""
 from __future__ import annotations
 
-import json
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -9,18 +9,24 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.exceptions import HomeAssistantError
+
+_LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "http_request"
 
-# Basic configuration schema
-DATA_SCHEMA = vol.Schema({
-    vol.Required("name"): str,
-    vol.Required("url"): str,
-    vol.Optional("method", default="GET"): vol.In(["GET", "POST", "PUT", "PATCH", "DELETE"]),
-    vol.Optional("headers", default=""): str,
-    vol.Optional("timeout", default=30): vol.All(vol.Coerce(int), vol.Range(min=1, max=300)),
-    vol.Optional("scan_interval", default=60): vol.All(vol.Coerce(int), vol.Range(min=10, max=86400)),
-})
+STEP_USER_DATA_SCHEMA = vol.Schema(
+    {
+        vol.Required("name", default="HTTP Request"): str,
+        vol.Required("url"): str,
+    }
+)
+
+
+async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+    """Validate the user input allows us to connect."""
+    # Return info that you want to store in the config entry.
+    return {"title": data["name"]}
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -32,32 +38,21 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the initial step."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="user", data_schema=STEP_USER_DATA_SCHEMA
+            )
+
         errors = {}
 
-        if user_input is not None:
-            # Validate the data
-            if not user_input.get("name"):
-                errors["name"] = "invalid_name"
-            elif not user_input.get("url"):
-                errors["url"] = "invalid_url"
-            else:
-                # Validate JSON in headers field
-                headers_str = user_input.get("headers", "")
-                if headers_str:
-                    try:
-                        json.loads(headers_str)
-                    except json.JSONDecodeError:
-                        errors["headers"] = "invalid_json"
-                
-                if not errors:
-                    # Create the entry
-                    return self.async_create_entry(
-                        title=user_input["name"],
-                        data=user_input
-                    )
+        try:
+            info = await validate_input(self.hass, user_input)
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.exception("Unexpected exception")
+            errors["base"] = "unknown"
+        else:
+            return self.async_create_entry(title=info["title"], data=user_input)
 
         return self.async_show_form(
-            step_id="user",
-            data_schema=DATA_SCHEMA,
-            errors=errors,
+            step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
         )

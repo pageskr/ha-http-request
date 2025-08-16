@@ -1,21 +1,21 @@
 {
+  "title": "HTTP Request",
   "config": {
     "step": {
       "user": {
         "data": {
           "name": "Name",
-          "url": "URL", 
-          "method": "Method",
-          "headers": "Headers (JSON)",
-          "timeout": "Timeout (seconds)",
-          "scan_interval": "Update interval (seconds)"
+          "url": "URL"
         }
       }
     },
     "error": {
-      "invalid_name": "Please provide a name",
-      "invalid_url": "Please provide a URL",
-      "invalid_json": "Invalid JSON format"
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
     }
   }
 }

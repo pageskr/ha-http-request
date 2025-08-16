@@ -1,21 +1,21 @@
 {
+  "title": "HTTP Request",
   "config": {
     "step": {
       "user": {
         "data": {
           "name": "이름",
-          "url": "URL", 
-          "method": "메소드",
-          "headers": "헤더 (JSON)",
-          "timeout": "타임아웃 (초)",
-          "scan_interval": "업데이트 간격 (초)"
+          "url": "URL"
         }
       }
     },
     "error": {
-      "invalid_name": "이름을 입력해주세요",
-      "invalid_url": "URL을 입력해주세요",
-      "invalid_json": "잘못된 JSON 형식입니다"
+      "cannot_connect": "연결 실패",
+      "invalid_auth": "잘못된 인증",
+      "unknown": "예기치 않은 오류"
+    },
+    "abort": {
+      "already_configured": "기기가 이미 구성되었습니다"
     }
   }
 }
