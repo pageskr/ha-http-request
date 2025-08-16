@@ -1,58 +1,21 @@
 {
-  "title": "HTTP Request",
   "config": {
     "step": {
       "user": {
-        "title": "HTTP Request 센서 설정",
-        "description": "API나 웹사이트에서 데이터를 가져올 새로운 HTTP 요청 센서를 설정합니다.",
         "data": {
           "name": "이름",
+          "url": "URL", 
           "method": "메소드",
-          "url": "URL",
           "headers": "헤더 (JSON)",
-          "params": "URL 파라미터 (JSON)",
-          "body": "요청 본문 (JSON)",
           "timeout": "타임아웃 (초)",
-          "verify_ssl": "SSL 인증서 검증",
-          "scan_interval": "업데이트 간격 (초)",
-          "response_type": "응답 타입",
-          "json_jmes": "JMESPath 표현식",
-          "html_selector": "CSS 선택자",
-          "html_attr": "HTML 속성",
-          "text_regex": "정규 표현식",
-          "text_group": "정규식 그룹",
-          "value_template": "값 템플릿",
-          "attributes": "추가 속성 (JSON)"
-        },
-        "data_description": {
-          "name": "센서의 이름",
-          "method": "요청에 사용할 HTTP 메소드",
-          "url": "데이터를 가져올 URL",
-          "headers": "JSON 객체 형태의 HTTP 헤더, 예: {\"Authorization\": \"Bearer token\"}",
-          "params": "JSON 객체 형태의 URL 파라미터, 예: {\"key\": \"value\"}",
-          "body": "POST/PUT/PATCH 요청을 위한 JSON 객체 형태의 요청 본문",
-          "timeout": "응답을 기다리는 시간",
-          "verify_ssl": "SSL 인증서 검증 여부",
-          "scan_interval": "새 데이터를 가져오는 빈도 (최소 10초)",
-          "response_type": "응답 형식",
-          "json_jmes": "JSON 응답에서 데이터를 추출할 JMESPath 표현식",
-          "html_selector": "HTML 응답에서 데이터를 추출할 CSS 선택자",
-          "html_attr": "추출할 HTML 속성 (요소 텍스트는 'text' 사용)",
-          "text_regex": "텍스트 응답에서 데이터를 추출할 정규 표현식",
-          "text_group": "사용할 정규식 캡처 그룹",
-          "value_template": "추출된 값을 변환할 Jinja2 템플릿",
-          "attributes": "추출할 추가 속성의 JSON 배열"
+          "scan_interval": "업데이트 간격 (초)"
         }
       }
     },
     "error": {
-      "unknown": "예기치 않은 오류가 발생했습니다",
-      "invalid_name": "올바른 이름을 입력하세요",
-      "invalid_url": "올바른 URL을 입력하세요",
-      "invalid_json": "필드 중 하나에 잘못된 JSON 형식이 있습니다"
-    },
-    "abort": {
-      "already_configured": "기기가 이미 구성되었습니다"
+      "invalid_name": "이름을 입력해주세요",
+      "invalid_url": "URL을 입력해주세요",
+      "invalid_json": "잘못된 JSON 형식입니다"
     }
   }
 }
