@@ -14,7 +14,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -32,6 +31,7 @@ from .const import (
     CONF_PARAMS,
     CONF_RESPONSE_TYPE,
     CONF_SCAN_INTERVAL,
+    CONF_SENSOR_NAME,
     CONF_TEXT_GROUP,
     CONF_TEXT_REGEX,
     CONF_TIMEOUT,
@@ -39,13 +39,12 @@ from .const import (
     CONF_VALUE_TEMPLATE,
     CONF_VERIFY_SSL,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SENSOR_NAME,
     DEFAULT_TIMEOUT,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
-    MANUFACTURER,
-    MODEL,
 )
-from .parser import parse_html, parse_json, parse_text, render_template
+from .parser import parse_html, parse_html_full, parse_json, parse_text, render_template
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,11 +55,26 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the HTTP Request sensor."""
-    coordinator = HttpRequestDataUpdateCoordinator(hass, config_entry)
+    # Check if coordinator already exists (created by binary_sensor)
+    if "coordinator" in hass.data[DOMAIN][config_entry.entry_id]:
+        coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
+    else:
+        # Create new coordinator if not exists
+        coordinator = HttpRequestDataUpdateCoordinator(hass, config_entry)
+        await coordinator.async_config_entry_first_refresh()
+        hass.data[DOMAIN][config_entry.entry_id]["coordinator"] = coordinator
     
-    await coordinator.async_config_entry_first_refresh()
+    # Get sensors configuration
+    sensors_config = config_entry.data.get("sensors", [])
     
-    async_add_entities([HttpRequestSensor(coordinator, config_entry)], True)
+    # Create sensor entities
+    sensors = []
+    for idx, sensor_config in enumerate(sensors_config):
+        sensors.append(
+            HttpRequestSensor(coordinator, config_entry, sensor_config, idx)
+        )
+    
+    async_add_entities(sensors, True)
 
 
 class HttpRequestDataUpdateCoordinator(DataUpdateCoordinator):
@@ -130,6 +144,11 @@ class HttpRequestDataUpdateCoordinator(DataUpdateCoordinator):
                     text = await response.text()
                     status = response.status
                     
+                    # Get response headers
+                    response_headers = response.headers
+                    content_type = response.content_type
+                    content_length = response.headers.get("Content-Length")
+                    
                     # Try to parse as JSON if needed
                     json_data = None
                     if self.response_type == "json":
@@ -139,46 +158,13 @@ class HttpRequestDataUpdateCoordinator(DataUpdateCoordinator):
                             _LOGGER.debug("Failed to parse response as JSON")
                     
                     # Store response data
-                    response_data = {
+                    return {
                         "text": text,
                         "json": json_data,
                         "status": status,
-                    }
-                    
-                    # Parse based on response type
-                    if self.response_type == "json":
-                        value = parse_json(
-                            json_data or text,
-                            self.config_entry.data.get(CONF_JSON_PATH)
-                        )
-                    elif self.response_type == "html":
-                        value = parse_html(
-                            text,
-                            self.config_entry.data.get(CONF_HTML_SELECTOR, ""),
-                            self.config_entry.data.get(CONF_HTML_ATTR)
-                        )
-                    elif self.response_type == "text":
-                        value = parse_text(
-                            text,
-                            self.config_entry.data.get(CONF_TEXT_REGEX),
-                            self.config_entry.data.get(CONF_TEXT_GROUP, 1)
-                        )
-                    else:
-                        value = text
-                    
-                    # Apply template if configured
-                    template_str = self.config_entry.data.get(CONF_VALUE_TEMPLATE)
-                    if template_str:
-                        value = await render_template(
-                            self.hass,
-                            template_str,
-                            value,
-                            response_data
-                        )
-                    
-                    return {
-                        "value": value,
-                        "response_data": response_data,
+                        "headers": response_headers,
+                        "content_type": content_type,
+                        "content_length": int(content_length) if content_length else None,
                     }
                     
         except aiohttp.ClientError as err:
@@ -197,29 +183,30 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         self,
         coordinator: HttpRequestDataUpdateCoordinator,
         config_entry: ConfigEntry,
+        sensor_config: dict[str, Any],
+        idx: int,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._config_entry = config_entry
-        self._attr_unique_id = config_entry.entry_id
-        self._attr_name = config_entry.data.get(CONF_NAME, "HTTP Request")
+        self._sensor_config = sensor_config
+        self._idx = idx
         
-        # Set device info
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, config_entry.entry_id)},
-            name=MODEL,
-            manufacturer=MANUFACTURER,
-            model=MODEL,
-            sw_version="1.0.0",
-            configuration_url="https://github.com/pageskr/ha-http-request",
-        )
+        # Set unique ID for this sensor
+        sensor_name = sensor_config.get("name", DEFAULT_SENSOR_NAME)
+        self._attr_unique_id = f"{config_entry.entry_id}_{idx}_{sensor_name}"
+        
+        # Set name as "HTTP Request {Sensor}"
+        self._attr_name = f"HTTP Request {sensor_name}"
+        
+        # Store parsed values
+        self._parsed_value = None
+        self._response_html = None
 
     @property
     def native_value(self) -> Any:
         """Return the state of the sensor."""
-        if self.coordinator.data is None:
-            return None
-        return self.coordinator.data.get("value")
+        return self._parsed_value
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
@@ -227,17 +214,77 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         if self.coordinator.data is None:
             return None
             
-        response_data = self.coordinator.data.get("response_data", {})
+        response_data = self.coordinator.data
         
         attributes = {
-            "http_status": response_data.get("status"),
-            "response_type": self.coordinator.response_type,
-            "url": self.coordinator.url,
-            "method": self.coordinator.method,
+            "sensor_index": self._idx,
+            "sensor_name": self._sensor_config.get("name", DEFAULT_SENSOR_NAME),
         }
         
-        # Add raw response for debugging
-        if self.coordinator.response_type == "json" and response_data.get("json"):
-            attributes["json_response"] = response_data["json"]
+        # Add response HTML for HTML type
+        if self.coordinator.response_type == "html" and self._response_html:
+            attributes["response_html"] = self._response_html
+        
+        # Add parsing configuration
+        if self.coordinator.response_type == "json":
+            if json_path := self._sensor_config.get(CONF_JSON_PATH):
+                attributes["json_path"] = json_path
+        elif self.coordinator.response_type == "html":
+            attributes["html_selector"] = self._sensor_config.get(CONF_HTML_SELECTOR, "")
+            if html_attr := self._sensor_config.get(CONF_HTML_ATTR):
+                attributes["html_attr"] = html_attr
+        elif self.coordinator.response_type == "text":
+            if regex := self._sensor_config.get(CONF_TEXT_REGEX):
+                attributes["text_regex"] = regex
+                attributes["text_group"] = self._sensor_config.get(CONF_TEXT_GROUP, 1)
         
         return attributes
+
+    async def async_update(self) -> None:
+        """Update the sensor."""
+        await super().async_update()
+        
+        if self.coordinator.data is None:
+            self._parsed_value = None
+            self._response_html = None
+            return
+        
+        response_data = self.coordinator.data
+        
+        # Parse based on response type
+        if self.coordinator.response_type == "json":
+            value = parse_json(
+                response_data.get("json") or response_data.get("text"),
+                self._sensor_config.get(CONF_JSON_PATH)
+            )
+        elif self.coordinator.response_type == "html":
+            value = parse_html(
+                response_data.get("text", ""),
+                self._sensor_config.get(CONF_HTML_SELECTOR, ""),
+                self._sensor_config.get(CONF_HTML_ATTR)
+            )
+            # Get the full HTML of selected element
+            self._response_html = parse_html_full(
+                response_data.get("text", ""),
+                self._sensor_config.get(CONF_HTML_SELECTOR, "")
+            )
+        elif self.coordinator.response_type == "text":
+            value = parse_text(
+                response_data.get("text", ""),
+                self._sensor_config.get(CONF_TEXT_REGEX),
+                self._sensor_config.get(CONF_TEXT_GROUP, 1)
+            )
+        else:
+            value = response_data.get("text")
+        
+        # Apply template if configured
+        template_str = self._sensor_config.get(CONF_VALUE_TEMPLATE)
+        if template_str:
+            value = await render_template(
+                self.hass,
+                template_str,
+                value,
+                response_data
+            )
+        
+        self._parsed_value = value

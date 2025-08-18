@@ -3,10 +3,45 @@
   "config": {
     "step": {
       "user": {
-        "title": "HTTP Request 설정",
-        "description": "HTTP 요청 센서의 기본 설정을 구성합니다.",
+        "title": "HTTP Request 서비스 설정",
+        "description": "HTTP Request 서비스를 설정합니다. 센서는 설정 후 추가할 수 있습니다.",
         "data": {
-          "name": "이름",
+          "url": "URL",
+          "method": "HTTP 메소드",
+          "response_type": "응답 타입",
+          "headers": "헤더 (JSON)",
+          "params": "URL 파라미터 (JSON)",
+          "body": "요청 본문 (JSON)",
+          "timeout": "타임아웃 (초)",
+          "verify_ssl": "SSL 인증서 검증",
+          "scan_interval": "업데이트 간격 (초)"
+        }
+      }
+    },
+    "error": {
+      "invalid_headers_json": "헤더 JSON 형식이 잘못되었습니다",
+      "invalid_params_json": "파라미터 JSON 형식이 잘못되었습니다",
+      "invalid_body_json": "본문 JSON 형식이 잘못되었습니다",
+      "unknown": "예기치 않은 오류"
+    },
+    "abort": {
+      "already_configured": "이미 구성된 서비스입니다"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HTTP Request 옵션",
+        "menu_options": {
+          "settings": "서비스 설정 변경",
+          "add_sensor": "센서 추가",
+          "manage_sensors": "센서 관리"
+        }
+      },
+      "settings": {
+        "title": "서비스 설정",
+        "description": "HTTP 요청 설정을 변경합니다.",
+        "data": {
           "url": "URL",
           "method": "HTTP 메소드",
           "response_type": "응답 타입",
@@ -18,27 +53,40 @@
           "scan_interval": "업데이트 간격 (초)"
         }
       },
-      "parsing": {
-        "title": "파싱 설정",
+      "add_sensor": {
+        "title": "센서 추가",
+        "description": "HTTP Request 응답을 파싱하여 센서를 생성합니다.",
+        "data": {
+          "sensor_name": "센서 이름"
+        }
+      },
+      "sensor_parsing": {
+        "title": "센서 파싱 설정",
         "description": "{response_type} 응답을 파싱하기 위한 설정을 구성합니다.",
         "data": {
-          "json_path": "JSON 경로 (예: data.temperature)",
+          "json_path": "JSON 경로 (예: data.temperature 또는 items[0].value)",
           "html_selector": "CSS 선택자",
-          "html_attr": "HTML 속성",
+          "html_attr": "HTML 속성 (기본값: text)",
           "text_regex": "정규 표현식",
           "text_group": "정규식 그룹",
           "value_template": "값 템플릿 (Jinja2)"
+        }
+      },
+      "manage_sensors": {
+        "title": "센서 관리",
+        "description": "현재 {sensor_count}개의 센서가 구성되어 있습니다.",
+        "data": {
+          "remove_sensors": "제거할 센서 선택"
         }
       }
     },
     "error": {
       "invalid_headers_json": "헤더 JSON 형식이 잘못되었습니다",
       "invalid_params_json": "파라미터 JSON 형식이 잘못되었습니다",
-      "invalid_body_json": "본문 JSON 형식이 잘못되었습니다",
-      "unknown": "예기치 않은 오류"
+      "invalid_body_json": "본문 JSON 형식이 잘못되었습니다"
     },
     "abort": {
-      "already_configured": "이미 구성된 센서입니다"
+      "no_sensors": "관리할 센서가 없습니다"
     }
   }
 }

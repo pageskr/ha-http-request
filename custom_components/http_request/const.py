@@ -2,6 +2,7 @@
 from typing import Final
 
 DOMAIN: Final = "http_request"
+DOMAIN_DATA: Final = f"{DOMAIN}_data"
 
 # Device info
 MANUFACTURER: Final = "Pages in Korea (pages.kr)"
@@ -18,6 +19,7 @@ CONF_TIMEOUT: Final = "timeout"
 CONF_VERIFY_SSL: Final = "verify_ssl"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_RESPONSE_TYPE: Final = "response_type"
+CONF_SENSOR_NAME: Final = "sensor_name"
 
 # Parsing options
 CONF_JSON_PATH: Final = "json_path"
@@ -30,7 +32,8 @@ CONF_TEXT_GROUP: Final = "text_group"
 CONF_VALUE_TEMPLATE: Final = "value_template"
 
 # Defaults
-DEFAULT_NAME: Final = "HTTP Request Sensor"
+DEFAULT_NAME: Final = "HTTP Request"
+DEFAULT_SENSOR_NAME: Final = "Sensor"
 DEFAULT_METHOD: Final = "GET"
 DEFAULT_TIMEOUT: Final = 30
 DEFAULT_VERIFY_SSL: Final = True

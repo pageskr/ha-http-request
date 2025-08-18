@@ -26,20 +26,58 @@ def parse_json(data: str | dict, path: str | None = None) -> Any:
         if not path:
             return json_data
             
-        # Simple JSON path support (e.g., "data.temperature" or "items[0].value")
+        # Enhanced JSON path support
+        # Support for:
+        # - Simple path: "data.temperature"
+        # - Array index: "items[0].value"
+        # - Multiple indices: "data.items[0].values[1]"
+        # - Bracket notation: "data['temperature']"
+        
         result = json_data
-        for part in path.split('.'):
-            if '[' in part and ']' in part:
-                # Handle array index
-                key, index_str = part.split('[')
-                index = int(index_str.rstrip(']'))
+        
+        # Replace bracket notation with dot notation
+        path = path.replace("']['", ".").replace("['", ".").replace("']", "").replace("[\"", ".").replace("\"]", "")
+        
+        # Split by dots, but handle array indices
+        parts = []
+        current = ""
+        for char in path:
+            if char == ".":
+                if current:
+                    parts.append(current)
+                    current = ""
+            elif char == "[":
+                if current:
+                    parts.append(current)
+                    current = "["
+            else:
+                current += char
+        if current:
+            parts.append(current)
+        
+        for part in parts:
+            if not part:
+                continue
+                
+            if part.startswith("[") and part.endswith("]"):
+                # Array index
+                index = int(part[1:-1])
+                result = result[index]
+            elif "[" in part and "]" in part:
+                # Handle array index in format like "items[0]"
+                key, index_str = part.split("[")
+                index = int(index_str.rstrip("]"))
                 if key:
                     result = result[key]
                 result = result[index]
             else:
+                # Regular key
                 result = result[part]
         
         return result
+    except (KeyError, IndexError, TypeError) as err:
+        _LOGGER.debug("JSON path error for path '%s': %s", path, err)
+        return None
     except Exception as err:
         _LOGGER.error("JSON parsing error: %s", err)
         return None
@@ -59,6 +97,23 @@ def parse_html(html_content: str, selector: str, attr: str | None = None) -> Any
             return element.get_text(strip=True)
         
         return element.get(attr)
+    except Exception as err:
+        _LOGGER.error("HTML parsing error: %s", err)
+        return None
+
+
+def parse_html_full(html_content: str, selector: str) -> str | None:
+    """Parse HTML and return the outer HTML of selected element."""
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        element = soup.select_one(selector)
+        
+        if element is None:
+            _LOGGER.debug("No element found for selector: %s", selector)
+            return None
+        
+        # Return the outer HTML
+        return str(element)
     except Exception as err:
         _LOGGER.error("HTML parsing error: %s", err)
         return None

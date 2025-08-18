@@ -3,10 +3,45 @@
   "config": {
     "step": {
       "user": {
-        "title": "Configure HTTP Request",
-        "description": "Set up the basic configuration for your HTTP request sensor.",
+        "title": "HTTP Request Service Configuration",
+        "description": "Configure HTTP Request service. Sensors can be added after setup.",
         "data": {
-          "name": "Name",
+          "url": "URL",
+          "method": "HTTP Method",
+          "response_type": "Response Type",
+          "headers": "Headers (JSON)",
+          "params": "URL Parameters (JSON)",
+          "body": "Request Body (JSON)",
+          "timeout": "Timeout (seconds)",
+          "verify_ssl": "Verify SSL Certificate",
+          "scan_interval": "Update Interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "invalid_headers_json": "Invalid headers JSON format",
+      "invalid_params_json": "Invalid parameters JSON format",
+      "invalid_body_json": "Invalid body JSON format",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Service is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HTTP Request Options",
+        "menu_options": {
+          "settings": "Change Service Settings",
+          "add_sensor": "Add Sensor",
+          "manage_sensors": "Manage Sensors"
+        }
+      },
+      "settings": {
+        "title": "Service Settings",
+        "description": "Change HTTP request settings.",
+        "data": {
           "url": "URL",
           "method": "HTTP Method",
           "response_type": "Response Type",
@@ -18,27 +53,40 @@
           "scan_interval": "Update Interval (seconds)"
         }
       },
-      "parsing": {
-        "title": "Parsing Configuration",
-        "description": "Configure how to parse the {response_type} response.",
+      "add_sensor": {
+        "title": "Add Sensor",
+        "description": "Parse HTTP Request response to create a sensor.",
         "data": {
-          "json_path": "JSON Path (e.g., data.temperature)",
+          "sensor_name": "Sensor Name"
+        }
+      },
+      "sensor_parsing": {
+        "title": "Sensor Parsing Configuration",
+        "description": "Configure parsing settings for {response_type} response.",
+        "data": {
+          "json_path": "JSON Path (e.g., data.temperature or items[0].value)",
           "html_selector": "CSS Selector",
-          "html_attr": "HTML Attribute",
+          "html_attr": "HTML Attribute (default: text)",
           "text_regex": "Regular Expression",
           "text_group": "Regex Group",
           "value_template": "Value Template (Jinja2)"
         }
+      },
+      "manage_sensors": {
+        "title": "Manage Sensors",
+        "description": "Currently {sensor_count} sensors are configured.",
+        "data": {
+          "remove_sensors": "Select sensors to remove"
+        }
       }
     },
     "error": {
-      "invalid_headers_json": "Invalid JSON format in headers",
-      "invalid_params_json": "Invalid JSON format in parameters",
-      "invalid_body_json": "Invalid JSON format in body",
-      "unknown": "Unexpected error"
+      "invalid_headers_json": "Invalid headers JSON format",
+      "invalid_params_json": "Invalid parameters JSON format",
+      "invalid_body_json": "Invalid body JSON format"
     },
     "abort": {
-      "already_configured": "Sensor is already configured"
+      "no_sensors": "No sensors to manage"
     }
   }
 }

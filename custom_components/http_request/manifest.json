@@ -6,6 +6,6 @@
   "dependencies": [],
   "documentation": "https://github.com/pageskr/ha-http-request",
   "iot_class": "cloud_polling",
-  "requirements": ["beautifulsoup4==4.12.3"],
-  "version": "1.0.0"
+  "requirements": ["beautifulsoup4"],
+  "version": "1.2.0"
 }
