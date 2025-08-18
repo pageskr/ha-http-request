@@ -3,8 +3,9 @@
   "name": "HTTP Request",
   "codeowners": ["@pageskr"],
   "config_flow": true,
+  "dependencies": [],
   "documentation": "https://github.com/pageskr/ha-http-request",
   "iot_class": "cloud_polling",
-  "requirements": [],
+  "requirements": ["beautifulsoup4==4.12.3"],
   "version": "1.0.0"
 }

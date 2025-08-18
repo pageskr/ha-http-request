@@ -1,12 +1,44 @@
 {
+  "title": "HTTP Request",
   "config": {
     "step": {
       "user": {
+        "title": "Configure HTTP Request",
+        "description": "Set up the basic configuration for your HTTP request sensor.",
         "data": {
           "name": "Name",
-          "url": "URL"
+          "url": "URL",
+          "method": "HTTP Method",
+          "response_type": "Response Type",
+          "headers": "Headers (JSON)",
+          "params": "URL Parameters (JSON)",
+          "body": "Request Body (JSON)",
+          "timeout": "Timeout (seconds)",
+          "verify_ssl": "Verify SSL Certificate",
+          "scan_interval": "Update Interval (seconds)"
+        }
+      },
+      "parsing": {
+        "title": "Parsing Configuration",
+        "description": "Configure how to parse the {response_type} response.",
+        "data": {
+          "json_path": "JSON Path (e.g., data.temperature)",
+          "html_selector": "CSS Selector",
+          "html_attr": "HTML Attribute",
+          "text_regex": "Regular Expression",
+          "text_group": "Regex Group",
+          "value_template": "Value Template (Jinja2)"
         }
       }
+    },
+    "error": {
+      "invalid_headers_json": "Invalid JSON format in headers",
+      "invalid_params_json": "Invalid JSON format in parameters",
+      "invalid_body_json": "Invalid JSON format in body",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Sensor is already configured"
     }
   }
 }
