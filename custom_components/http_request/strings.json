@@ -3,8 +3,15 @@
   "config": {
     "step": {
       "user": {
-        "title": "HTTP Request 서비스 설정",
-        "description": "HTTP Request 서비스를 설정합니다. 센서는 설정 후 추가할 수 있습니다.",
+        "title": "서비스 이름 설정",
+        "description": "HTTP Request 서비스의 이름을 입력하세요.",
+        "data": {
+          "service_name": "서비스 이름"
+        }
+      },
+      "http_config": {
+        "title": "HTTP Request 설정",
+        "description": "HTTP 요청 설정을 구성합니다.",
         "data": {
           "url": "URL",
           "method": "HTTP 메소드",
@@ -31,17 +38,19 @@
   "options": {
     "step": {
       "init": {
-        "title": "HTTP Request 옵션",
+        "title": "HTTP Request 설정",
         "menu_options": {
-          "settings": "서비스 설정 변경",
+          "settings": "서비스 설정",
           "add_sensor": "센서 추가",
-          "manage_sensors": "센서 관리"
+          "edit_sensor": "센서 수정",
+          "remove_sensor": "센서 제거"
         }
       },
       "settings": {
         "title": "서비스 설정",
         "description": "HTTP 요청 설정을 변경합니다.",
         "data": {
+          "service_name": "서비스 이름",
           "url": "URL",
           "method": "HTTP 메소드",
           "response_type": "응답 타입",
@@ -72,11 +81,31 @@
           "value_template": "값 템플릿 (Jinja2)"
         }
       },
-      "manage_sensors": {
-        "title": "센서 관리",
-        "description": "현재 {sensor_count}개의 센서가 구성되어 있습니다.",
+      "edit_sensor": {
+        "title": "센서 수정",
+        "description": "수정할 센서를 선택하세요.",
         "data": {
-          "remove_sensors": "제거할 센서 선택"
+          "sensor_to_edit": "센서 선택"
+        }
+      },
+      "edit_sensor_details": {
+        "title": "센서 설정 수정",
+        "description": "'{sensor_name}' 센서의 {response_type} 파싱 설정을 수정합니다.",
+        "data": {
+          "sensor_name": "센서 이름",
+          "json_path": "JSON 경로 (예: data.temperature 또는 items[0].value)",
+          "html_selector": "CSS 선택자",
+          "html_attr": "HTML 속성 (기본값: text)",
+          "text_regex": "정규 표현식",
+          "text_group": "정규식 그룹",
+          "value_template": "값 템플릿 (Jinja2)"
+        }
+      },
+      "remove_sensor": {
+        "title": "센서 제거",
+        "description": "현재 {sensor_count}개의 센서가 구성되어 있습니다.\n제거할 센서를 선택하세요.",
+        "data": {
+          "sensors_to_remove": "제거할 센서"
         }
       }
     },
@@ -86,7 +115,7 @@
       "invalid_body_json": "본문 JSON 형식이 잘못되었습니다"
     },
     "abort": {
-      "no_sensors": "관리할 센서가 없습니다"
+      "no_sensors": "센서가 없습니다"
     }
   }
 }

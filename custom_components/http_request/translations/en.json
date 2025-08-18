@@ -3,8 +3,15 @@
   "config": {
     "step": {
       "user": {
-        "title": "HTTP Request Service Configuration",
-        "description": "Configure HTTP Request service. Sensors can be added after setup.",
+        "title": "Service Name",
+        "description": "Enter a name for the HTTP Request service.",
+        "data": {
+          "service_name": "Service Name"
+        }
+      },
+      "http_config": {
+        "title": "HTTP Request Configuration",
+        "description": "Configure HTTP request settings.",
         "data": {
           "url": "URL",
           "method": "HTTP Method",
@@ -31,17 +38,19 @@
   "options": {
     "step": {
       "init": {
-        "title": "HTTP Request Options",
+        "title": "HTTP Request Settings",
         "menu_options": {
-          "settings": "Change Service Settings",
+          "settings": "Service Settings",
           "add_sensor": "Add Sensor",
-          "manage_sensors": "Manage Sensors"
+          "edit_sensor": "Edit Sensor",
+          "remove_sensor": "Remove Sensor"
         }
       },
       "settings": {
         "title": "Service Settings",
         "description": "Change HTTP request settings.",
         "data": {
+          "service_name": "Service Name",
           "url": "URL",
           "method": "HTTP Method",
           "response_type": "Response Type",
@@ -72,11 +81,31 @@
           "value_template": "Value Template (Jinja2)"
         }
       },
-      "manage_sensors": {
-        "title": "Manage Sensors",
-        "description": "Currently {sensor_count} sensors are configured.",
+      "edit_sensor": {
+        "title": "Edit Sensor",
+        "description": "Select a sensor to edit.",
         "data": {
-          "remove_sensors": "Select sensors to remove"
+          "sensor_to_edit": "Select Sensor"
+        }
+      },
+      "edit_sensor_details": {
+        "title": "Edit Sensor Settings",
+        "description": "Edit {response_type} parsing settings for '{sensor_name}' sensor.",
+        "data": {
+          "sensor_name": "Sensor Name",
+          "json_path": "JSON Path (e.g., data.temperature or items[0].value)",
+          "html_selector": "CSS Selector",
+          "html_attr": "HTML Attribute (default: text)",
+          "text_regex": "Regular Expression",
+          "text_group": "Regex Group",
+          "value_template": "Value Template (Jinja2)"
+        }
+      },
+      "remove_sensor": {
+        "title": "Remove Sensor",
+        "description": "Currently {sensor_count} sensors are configured.\nSelect sensors to remove.",
+        "data": {
+          "sensors_to_remove": "Sensors to Remove"
         }
       }
     },
@@ -86,7 +115,7 @@
       "invalid_body_json": "Invalid body JSON format"
     },
     "abort": {
-      "no_sensors": "No sensors to manage"
+      "no_sensors": "No sensors available"
     }
   }
 }

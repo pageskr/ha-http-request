@@ -63,6 +63,29 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            # Save service name and move to HTTP configuration
+            self.data["service_name"] = user_input["service_name"]
+            return await self.async_step_http_config()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("service_name", default=DEFAULT_NAME): str,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=data_schema,
+            errors=errors,
+        )
+
+    async def async_step_http_config(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle HTTP configuration step."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
             # Validate JSON fields
             if user_input.get(CONF_HEADERS):
                 try:
@@ -83,15 +106,18 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = "invalid_body_json"
             
             if not errors:
+                # Combine all data
+                self.data.update(user_input)
+                
                 # Create unique ID for the integration instance
-                await self.async_set_unique_id(f"{DOMAIN}_{user_input[CONF_URL]}")
+                await self.async_set_unique_id(f"{DOMAIN}_{self.data[CONF_URL]}_{self.data['service_name']}")
                 self._abort_if_unique_id_configured()
                 
                 # Create entry without any sensors initially
                 return self.async_create_entry(
-                    title=DEFAULT_NAME,
+                    title=self.data["service_name"],
                     data={
-                        **user_input,
+                        **self.data,
                         "sensors": []  # Start with no sensors
                     },
                 )
@@ -115,7 +141,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         return self.async_show_form(
-            step_id="user",
+            step_id="http_config",
             data_schema=data_schema,
             errors=errors,
         )
@@ -135,6 +161,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
         self.config_entry = config_entry
+        self.sensor_to_edit = None
+        self.sensor_index_to_edit = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -142,7 +170,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Manage the options."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["settings", "add_sensor", "manage_sensors"],
+            menu_options=["settings", "add_sensor", "edit_sensor", "remove_sensor"],
         )
 
     async def async_step_settings(
@@ -187,6 +215,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         data = self.config_entry.data
         data_schema = vol.Schema(
             {
+                vol.Required("service_name", default=data.get("service_name", DEFAULT_NAME)): str,
                 vol.Required(CONF_URL, default=data.get(CONF_URL, "")): str,
                 vol.Required(CONF_METHOD, default=data.get(CONF_METHOD, DEFAULT_METHOD)): vol.In(HTTP_METHODS),
                 vol.Required(CONF_RESPONSE_TYPE, default=data.get(CONF_RESPONSE_TYPE, DEFAULT_RESPONSE_TYPE)): vol.In(RESPONSE_TYPES),
@@ -300,17 +329,125 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             description_placeholders={"response_type": response_type},
         )
 
-    async def async_step_manage_sensors(
+    async def async_step_edit_sensor(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle managing existing sensors."""
+        """Handle editing an existing sensor - select sensor."""
         sensors = self.config_entry.data.get("sensors", [])
         
+        if not sensors:
+            return self.async_abort(reason="no_sensors")
+        
         if user_input is not None:
-            # Handle sensor management actions
-            if "remove_sensors" in user_input:
-                # Remove selected sensors
-                indices_to_remove = user_input["remove_sensors"]
+            # Store selected sensor index
+            self.sensor_index_to_edit = int(user_input["sensor_to_edit"])
+            self.sensor_to_edit = sensors[self.sensor_index_to_edit]
+            return await self.async_step_edit_sensor_details()
+        
+        # Create options for sensor selection
+        sensor_options = {
+            str(i): f"{sensor.get('name', DEFAULT_SENSOR_NAME)}"
+            for i, sensor in enumerate(sensors)
+        }
+        
+        data_schema = vol.Schema(
+            {
+                vol.Required("sensor_to_edit"): vol.In(sensor_options),
+            }
+        )
+        
+        return self.async_show_form(
+            step_id="edit_sensor",
+            data_schema=data_schema,
+        )
+
+    async def async_step_edit_sensor_details(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle editing sensor details."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            # Update sensor configuration
+            new_data = dict(self.config_entry.data)
+            sensors = new_data.get("sensors", [])
+            
+            # Update the sensor with new values
+            updated_sensor = {
+                "name": user_input.get(CONF_SENSOR_NAME, self.sensor_to_edit["name"]),
+                **{k: v for k, v in user_input.items() if k != CONF_SENSOR_NAME}
+            }
+            sensors[self.sensor_index_to_edit] = updated_sensor
+            new_data["sensors"] = sensors
+            
+            # Update config entry
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data=new_data
+            )
+            
+            # Reload the integration
+            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            
+            return self.async_create_entry(title="", data={})
+
+        # Build schema based on response type with current values
+        response_type = self.config_entry.data.get(CONF_RESPONSE_TYPE, DEFAULT_RESPONSE_TYPE)
+        
+        # Base schema with sensor name
+        schema_dict = {
+            vol.Required(CONF_SENSOR_NAME, default=self.sensor_to_edit.get("name", DEFAULT_SENSOR_NAME)): str,
+        }
+        
+        if response_type == "json":
+            schema_dict.update({
+                vol.Optional(CONF_JSON_PATH, default=self.sensor_to_edit.get(CONF_JSON_PATH, "")): str,
+                vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
+            })
+        elif response_type == "html":
+            schema_dict.update({
+                vol.Required(CONF_HTML_SELECTOR, default=self.sensor_to_edit.get(CONF_HTML_SELECTOR, "")): str,
+                vol.Optional(CONF_HTML_ATTR, default=self.sensor_to_edit.get(CONF_HTML_ATTR, DEFAULT_HTML_ATTR)): str,
+                vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
+            })
+        elif response_type == "text":
+            schema_dict.update({
+                vol.Optional(CONF_TEXT_REGEX, default=self.sensor_to_edit.get(CONF_TEXT_REGEX, "")): str,
+                vol.Optional(CONF_TEXT_GROUP, default=self.sensor_to_edit.get(CONF_TEXT_GROUP, DEFAULT_TEXT_GROUP)): vol.All(
+                    vol.Coerce(int), vol.Range(min=0, max=99)
+                ),
+                vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
+            })
+        else:
+            schema_dict.update({
+                vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
+            })
+        
+        data_schema = vol.Schema(schema_dict)
+
+        return self.async_show_form(
+            step_id="edit_sensor_details",
+            data_schema=data_schema,
+            errors=errors,
+            description_placeholders={
+                "response_type": response_type,
+                "sensor_name": self.sensor_to_edit.get("name", DEFAULT_SENSOR_NAME),
+            },
+        )
+
+    async def async_step_remove_sensor(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle removing sensors."""
+        sensors = self.config_entry.data.get("sensors", [])
+        
+        if not sensors:
+            return self.async_abort(reason="no_sensors")
+        
+        if user_input is not None:
+            # Handle sensor removal
+            if "sensors_to_remove" in user_input and user_input["sensors_to_remove"]:
+                # Convert string indices to integers and remove sensors
+                indices_to_remove = [int(idx) for idx in user_input["sensors_to_remove"]]
                 new_sensors = [s for i, s in enumerate(sensors) if i not in indices_to_remove]
                 
                 new_data = dict(self.config_entry.data)
@@ -324,24 +461,20 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 
                 return self.async_create_entry(title="", data={})
         
-        if not sensors:
-            # No sensors to manage
-            return self.async_abort(reason="no_sensors")
-        
         # Create options for sensor selection
         sensor_options = {
-            i: f"{sensor.get('name', DEFAULT_SENSOR_NAME)} (Index: {i})"
+            str(i): f"{sensor.get('name', DEFAULT_SENSOR_NAME)}"
             for i, sensor in enumerate(sensors)
         }
         
         data_schema = vol.Schema(
             {
-                vol.Optional("remove_sensors"): cv.multi_select(sensor_options),
+                vol.Optional("sensors_to_remove"): cv.multi_select(sensor_options),
             }
         )
         
         return self.async_show_form(
-            step_id="manage_sensors",
+            step_id="remove_sensor",
             data_schema=data_schema,
             description_placeholders={"sensor_count": str(len(sensors))},
         )

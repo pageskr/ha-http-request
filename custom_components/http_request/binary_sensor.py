@@ -10,10 +10,11 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, MANUFACTURER, MODEL
 from .sensor import HttpRequestDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,7 +53,16 @@ class HttpRequestInfoEntity(CoordinatorEntity, BinarySensorEntity):
         super().__init__(coordinator)
         self._config_entry = config_entry
         self._attr_unique_id = f"{config_entry.entry_id}_info"
-        self._attr_name = "HTTP Request Info"
+        self._attr_name = "Info"
+        
+        # Set device info
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, config_entry.entry_id)},
+            name=config_entry.data.get("service_name", "HTTP Request"),
+            manufacturer=MANUFACTURER,
+            model=MODEL,
+            sw_version="1.2.0",
+        )
 
     @property
     def is_on(self) -> bool | None:

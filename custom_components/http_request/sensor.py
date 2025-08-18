@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -43,6 +44,8 @@ from .const import (
     DEFAULT_TIMEOUT,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
+    MANUFACTURER,
+    MODEL,
 )
 from .parser import parse_html, parse_html_full, parse_json, parse_text, render_template
 
@@ -196,8 +199,17 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         sensor_name = sensor_config.get("name", DEFAULT_SENSOR_NAME)
         self._attr_unique_id = f"{config_entry.entry_id}_{idx}_{sensor_name}"
         
-        # Set name as "HTTP Request {Sensor}"
-        self._attr_name = f"HTTP Request {sensor_name}"
+        # Set name
+        self._attr_name = sensor_name
+        
+        # Set device info
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, config_entry.entry_id)},
+            name=config_entry.data.get("service_name", "HTTP Request"),
+            manufacturer=MANUFACTURER,
+            model=MODEL,
+            sw_version="1.2.0",
+        )
         
         # Store parsed values
         self._parsed_value = None

@@ -9,9 +9,10 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
+from .const import DOMAIN, MANUFACTURER, MODEL
+
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = "http_request"
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
 
@@ -29,8 +30,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "sensors": {},
     }
 
-    # 서비스로 등록 (디바이스가 아닌)
-    # Home Assistant에서는 통합 자체가 서비스 역할을 함
+    # 디바이스(서비스)로 등록
+    device_registry = dr.async_get(hass)
+    service_name = entry.data.get("service_name", "HTTP Request")
+    
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=service_name,
+        manufacturer=MANUFACTURER,
+        model=MODEL,
+        sw_version="1.2.0",
+    )
     
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     
