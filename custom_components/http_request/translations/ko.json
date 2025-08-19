@@ -14,20 +14,20 @@
         "description": "HTTP 요청 설정을 구성합니다.",
         "data": {
           "url": "URL",
+          "verify_ssl": "SSL 인증서 검증",
           "method": "HTTP 메소드",
-          "response_type": "응답 타입",
-          "headers": "헤더 (JSON)",
-          "params": "URL 파라미터 (JSON)",
+          "headers": "요청 헤더 (JSON)",
+          "params": "요청 변수 (JSON)",
           "body": "요청 본문 (JSON)",
           "timeout": "타임아웃 (초)",
-          "verify_ssl": "SSL 인증서 검증",
-          "scan_interval": "업데이트 간격 (초)"
+          "scan_interval": "업데이트 간격 (초)",
+          "response_type": "응답 타입"
         }
       }
     },
     "error": {
       "invalid_headers_json": "헤더 JSON 형식이 잘못되었습니다",
-      "invalid_params_json": "파라미터 JSON 형식이 잘못되었습니다",
+      "invalid_params_json": "변수 JSON 형식이 잘못되었습니다",
       "invalid_body_json": "본문 JSON 형식이 잘못되었습니다",
       "unknown": "예기치 않은 오류"
     },
@@ -52,14 +52,14 @@
         "data": {
           "service_name": "서비스 이름",
           "url": "URL",
+          "verify_ssl": "SSL 인증서 검증",
           "method": "HTTP 메소드",
-          "response_type": "응답 타입",
-          "headers": "헤더 (JSON)",
-          "params": "URL 파라미터 (JSON)",
+          "headers": "요청 헤더 (JSON)",
+          "params": "요청 변수 (JSON)",
           "body": "요청 본문 (JSON)",
           "timeout": "타임아웃 (초)",
-          "verify_ssl": "SSL 인증서 검증",
-          "scan_interval": "업데이트 간격 (초)"
+          "scan_interval": "업데이트 간격 (초)",
+          "response_type": "응답 타입"
         }
       },
       "add_sensor": {
@@ -78,7 +78,8 @@
           "html_attr": "HTML 속성 (기본값: text)",
           "text_regex": "정규 표현식",
           "text_group": "정규식 그룹",
-          "value_template": "값 템플릿 (Jinja2)"
+          "value_template": "값 템플릿 (Jinja2)",
+          "attributes_template": "속성 템플릿 (JSON)"
         }
       },
       "edit_sensor": {
@@ -98,7 +99,8 @@
           "html_attr": "HTML 속성 (기본값: text)",
           "text_regex": "정규 표현식",
           "text_group": "정규식 그룹",
-          "value_template": "값 템플릿 (Jinja2)"
+          "value_template": "값 템플릿 (Jinja2)",
+          "attributes_template": "속성 템플릿 (JSON)"
         }
       },
       "remove_sensor": {
@@ -111,8 +113,9 @@
     },
     "error": {
       "invalid_headers_json": "헤더 JSON 형식이 잘못되었습니다",
-      "invalid_params_json": "파라미터 JSON 형식이 잘못되었습니다",
-      "invalid_body_json": "본문 JSON 형식이 잘못되었습니다"
+      "invalid_params_json": "변수 JSON 형식이 잘못되었습니다",
+      "invalid_body_json": "본문 JSON 형식이 잘못되었습니다",
+      "invalid_attributes_json": "속성 JSON 형식이 잘못되었습니다"
     },
     "abort": {
       "no_sensors": "센서가 없습니다"

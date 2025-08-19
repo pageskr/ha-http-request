@@ -38,10 +38,13 @@ DEFAULT_METHOD: Final = "GET"
 DEFAULT_TIMEOUT: Final = 30
 DEFAULT_VERIFY_SSL: Final = True
 DEFAULT_SCAN_INTERVAL: Final = 300
-DEFAULT_RESPONSE_TYPE: Final = "text"
+DEFAULT_RESPONSE_TYPE: Final = "json"
 DEFAULT_HTML_ATTR: Final = "text"
 DEFAULT_TEXT_GROUP: Final = 1
 
 # Response types
-RESPONSE_TYPES: Final = ["text", "json", "html"]
+RESPONSE_TYPES: Final = ["json", "html", "text"]
 HTTP_METHODS: Final = ["GET", "POST", "PUT", "DELETE", "PATCH"]
+
+# Attributes template
+CONF_ATTRIBUTES_TEMPLATE: Final = "attributes_template"

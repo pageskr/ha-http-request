@@ -30,6 +30,7 @@ from .const import (
     CONF_VALUE_TEMPLATE,
     CONF_VERIFY_SSL,
     CONF_SENSOR_NAME,
+    CONF_ATTRIBUTES_TEMPLATE,
     DEFAULT_HTML_ATTR,
     DEFAULT_METHOD,
     DEFAULT_NAME,
@@ -122,21 +123,22 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     },
                 )
 
+        # Reordered schema with SSL after URL
         data_schema = vol.Schema(
             {
                 vol.Required(CONF_URL): str,
+                vol.Optional(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL): bool,
                 vol.Required(CONF_METHOD, default=DEFAULT_METHOD): vol.In(HTTP_METHODS),
-                vol.Required(CONF_RESPONSE_TYPE, default=DEFAULT_RESPONSE_TYPE): vol.In(RESPONSE_TYPES),
                 vol.Optional(CONF_HEADERS, default=""): str,
                 vol.Optional(CONF_PARAMS, default=""): str,
                 vol.Optional(CONF_BODY, default=""): str,
                 vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=300)
                 ),
-                vol.Optional(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL): bool,
                 vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
                     vol.Coerce(int), vol.Range(min=30, max=86400)
                 ),
+                vol.Required(CONF_RESPONSE_TYPE, default=DEFAULT_RESPONSE_TYPE): vol.In(RESPONSE_TYPES),
             }
         )
 
@@ -213,22 +215,23 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 return self.async_create_entry(title="", data={})
 
         data = self.config_entry.data
+        # Reordered schema
         data_schema = vol.Schema(
             {
                 vol.Required("service_name", default=data.get("service_name", DEFAULT_NAME)): str,
                 vol.Required(CONF_URL, default=data.get(CONF_URL, "")): str,
+                vol.Optional(CONF_VERIFY_SSL, default=data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)): bool,
                 vol.Required(CONF_METHOD, default=data.get(CONF_METHOD, DEFAULT_METHOD)): vol.In(HTTP_METHODS),
-                vol.Required(CONF_RESPONSE_TYPE, default=data.get(CONF_RESPONSE_TYPE, DEFAULT_RESPONSE_TYPE)): vol.In(RESPONSE_TYPES),
                 vol.Optional(CONF_HEADERS, default=data.get(CONF_HEADERS, "")): str,
                 vol.Optional(CONF_PARAMS, default=data.get(CONF_PARAMS, "")): str,
                 vol.Optional(CONF_BODY, default=data.get(CONF_BODY, "")): str,
                 vol.Optional(CONF_TIMEOUT, default=data.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=300)
                 ),
-                vol.Optional(CONF_VERIFY_SSL, default=data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)): bool,
                 vol.Optional(CONF_SCAN_INTERVAL, default=data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): vol.All(
                     vol.Coerce(int), vol.Range(min=30, max=86400)
                 ),
+                vol.Required(CONF_RESPONSE_TYPE, default=data.get(CONF_RESPONSE_TYPE, DEFAULT_RESPONSE_TYPE)): vol.In(RESPONSE_TYPES),
             }
         )
 
@@ -265,27 +268,35 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Add new sensor to the sensors list
-            new_data = dict(self.config_entry.data)
-            sensors = new_data.get("sensors", [])
+            # Validate attributes template JSON if provided
+            if user_input.get(CONF_ATTRIBUTES_TEMPLATE):
+                try:
+                    json.loads(user_input[CONF_ATTRIBUTES_TEMPLATE])
+                except json.JSONDecodeError:
+                    errors["base"] = "invalid_attributes_json"
             
-            # Create new sensor config
-            new_sensor = {
-                "name": self.temp_sensor_name,
-                **user_input
-            }
-            sensors.append(new_sensor)
-            new_data["sensors"] = sensors
-            
-            # Update config entry
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, data=new_data
-            )
-            
-            # Reload the integration to add the new sensor
-            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
-            
-            return self.async_create_entry(title="", data={})
+            if not errors:
+                # Add new sensor to the sensors list
+                new_data = dict(self.config_entry.data)
+                sensors = new_data.get("sensors", [])
+                
+                # Create new sensor config
+                new_sensor = {
+                    "name": self.temp_sensor_name,
+                    **user_input
+                }
+                sensors.append(new_sensor)
+                new_data["sensors"] = sensors
+                
+                # Update config entry
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry, data=new_data
+                )
+                
+                # Reload the integration to add the new sensor
+                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+                
+                return self.async_create_entry(title="", data={})
 
         # Build schema based on response type
         response_type = self.config_entry.data.get(CONF_RESPONSE_TYPE, DEFAULT_RESPONSE_TYPE)
@@ -295,6 +306,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 {
                     vol.Optional(CONF_JSON_PATH, default=""): str,
                     vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
                 }
             )
         elif response_type == "html":
@@ -303,6 +315,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Required(CONF_HTML_SELECTOR): str,
                     vol.Optional(CONF_HTML_ATTR, default=DEFAULT_HTML_ATTR): str,
                     vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
                 }
             )
         elif response_type == "text":
@@ -313,12 +326,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         vol.Coerce(int), vol.Range(min=0, max=99)
                     ),
                     vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
                 }
             )
         else:
             data_schema = vol.Schema(
                 {
                     vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
                 }
             )
 
@@ -368,46 +383,57 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Update sensor configuration
-            new_data = dict(self.config_entry.data)
-            sensors = new_data.get("sensors", [])
+            # Validate attributes template JSON if provided
+            if user_input.get(CONF_ATTRIBUTES_TEMPLATE):
+                try:
+                    json.loads(user_input[CONF_ATTRIBUTES_TEMPLATE])
+                except json.JSONDecodeError:
+                    errors["base"] = "invalid_attributes_json"
             
-            # Update the sensor with new values
-            updated_sensor = {
-                "name": user_input.get(CONF_SENSOR_NAME, self.sensor_to_edit["name"]),
-                **{k: v for k, v in user_input.items() if k != CONF_SENSOR_NAME}
-            }
-            sensors[self.sensor_index_to_edit] = updated_sensor
-            new_data["sensors"] = sensors
-            
-            # Update config entry
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, data=new_data
-            )
-            
-            # Reload the integration
-            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
-            
-            return self.async_create_entry(title="", data={})
+            if not errors:
+                # Update sensor configuration
+                new_data = dict(self.config_entry.data)
+                sensors = new_data.get("sensors", [])
+                
+                # Update the sensor with new values
+                updated_sensor = {
+                    "name": user_input.get(CONF_SENSOR_NAME, self.sensor_to_edit["name"]),
+                    **{k: v for k, v in user_input.items() if k != CONF_SENSOR_NAME}
+                }
+                sensors[self.sensor_index_to_edit] = updated_sensor
+                new_data["sensors"] = sensors
+                
+                # Update config entry
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry, data=new_data
+                )
+                
+                # Reload the integration
+                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+                
+                return self.async_create_entry(title="", data={})
 
         # Build schema based on response type with current values
         response_type = self.config_entry.data.get(CONF_RESPONSE_TYPE, DEFAULT_RESPONSE_TYPE)
+        sensor_name = self.sensor_to_edit.get("name", DEFAULT_SENSOR_NAME)
         
         # Base schema with sensor name
         schema_dict = {
-            vol.Required(CONF_SENSOR_NAME, default=self.sensor_to_edit.get("name", DEFAULT_SENSOR_NAME)): str,
+            vol.Required(CONF_SENSOR_NAME, default=sensor_name): str,
         }
         
         if response_type == "json":
             schema_dict.update({
                 vol.Optional(CONF_JSON_PATH, default=self.sensor_to_edit.get(CONF_JSON_PATH, "")): str,
                 vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
+                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
             })
         elif response_type == "html":
             schema_dict.update({
                 vol.Required(CONF_HTML_SELECTOR, default=self.sensor_to_edit.get(CONF_HTML_SELECTOR, "")): str,
                 vol.Optional(CONF_HTML_ATTR, default=self.sensor_to_edit.get(CONF_HTML_ATTR, DEFAULT_HTML_ATTR)): str,
                 vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
+                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
             })
         elif response_type == "text":
             schema_dict.update({
@@ -416,10 +442,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Coerce(int), vol.Range(min=0, max=99)
                 ),
                 vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
+                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
             })
         else:
             schema_dict.update({
                 vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
+                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
             })
         
         data_schema = vol.Schema(schema_dict)
@@ -430,7 +458,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             errors=errors,
             description_placeholders={
                 "response_type": response_type,
-                "sensor_name": self.sensor_to_edit.get("name", DEFAULT_SENSOR_NAME),
+                "sensor_name": sensor_name,
             },
         )
 

@@ -138,30 +138,70 @@ def parse_text(text: str, regex: str | None = None, group: int = 1) -> Any:
         return None
 
 
+def parse_text_all(text: str, regex: str) -> list[str] | None:
+    """Parse text and return all regex matches."""
+    if not regex:
+        return None
+        
+    try:
+        matches = re.findall(regex, text, re.MULTILINE | re.DOTALL)
+        return matches if matches else None
+    except Exception as err:
+        _LOGGER.error("Regex error: %s", err)
+        return None
+
+
 async def render_template(
     hass: HomeAssistant,
     template_str: str,
-    value: Any,
-    response_data: dict[str, Any],
+    variables: dict[str, Any],
 ) -> Any:
-    """Render a template with the given value and context."""
+    """Render a template with the given variables."""
     if not template_str:
-        return value
+        return variables.get("value")
         
     try:
         template = template_helper.Template(template_str, hass)
-        variables = {
-            "value": value,
-            "response": response_data.get("text", ""),
-            "json": response_data.get("json"),
-            "status": response_data.get("status"),
-        }
-        
         result = template.async_render(variables)
         return result
     except TemplateError as err:
         _LOGGER.error("Template error: %s", err)
-        return value
+        return variables.get("value")
     except Exception as err:
         _LOGGER.error("Unexpected template error: %s", err)
-        return value
+        return variables.get("value")
+
+
+async def render_attributes_template(
+    hass: HomeAssistant,
+    template_str: str,
+    variables: dict[str, Any],
+) -> dict[str, Any]:
+    """Render attributes template and return dictionary."""
+    if not template_str:
+        return {}
+        
+    try:
+        # First, parse the JSON structure
+        attributes_config = json.loads(template_str)
+        
+        # Then render each value as a template
+        rendered_attributes = {}
+        for key, value_template in attributes_config.items():
+            if isinstance(value_template, str):
+                template = template_helper.Template(value_template, hass)
+                rendered_attributes[key] = template.async_render(variables)
+            else:
+                # If not a string, use as-is
+                rendered_attributes[key] = value_template
+        
+        return rendered_attributes
+    except json.JSONDecodeError as err:
+        _LOGGER.error("Invalid JSON in attributes template: %s", err)
+        return {}
+    except TemplateError as err:
+        _LOGGER.error("Template error in attributes: %s", err)
+        return {}
+    except Exception as err:
+        _LOGGER.error("Unexpected error in attributes template: %s", err)
+        return {}

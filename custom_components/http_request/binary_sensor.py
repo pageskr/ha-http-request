@@ -10,6 +10,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -52,16 +53,17 @@ class HttpRequestInfoEntity(CoordinatorEntity, BinarySensorEntity):
         """Initialize the info entity."""
         super().__init__(coordinator)
         self._config_entry = config_entry
+        service_name = config_entry.data.get("service_name", "HTTP Request")
         self._attr_unique_id = f"{config_entry.entry_id}_info"
         self._attr_name = "Info"
         
-        # Set device info
+        # Set device info for service
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, config_entry.entry_id)},
-            name=config_entry.data.get("service_name", "HTTP Request"),
+            name=service_name,
             manufacturer=MANUFACTURER,
             model=MODEL,
-            sw_version="1.2.0",
+            entry_type=dr.DeviceEntryType.SERVICE,  # 서비스 타입
         )
 
     @property

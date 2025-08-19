@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
@@ -39,6 +40,7 @@ from .const import (
     CONF_URL,
     CONF_VALUE_TEMPLATE,
     CONF_VERIFY_SSL,
+    CONF_ATTRIBUTES_TEMPLATE,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SENSOR_NAME,
     DEFAULT_TIMEOUT,
@@ -47,7 +49,7 @@ from .const import (
     MANUFACTURER,
     MODEL,
 )
-from .parser import parse_html, parse_html_full, parse_json, parse_text, render_template
+from .parser import parse_html, parse_html_full, parse_json, parse_text, parse_text_all, render_template, render_attributes_template
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,7 +99,7 @@ class HttpRequestDataUpdateCoordinator(DataUpdateCoordinator):
         self.method = config_entry.data.get(CONF_METHOD, "GET")
         self.timeout = config_entry.data.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)
         self.verify_ssl = config_entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)
-        self.response_type = config_entry.data.get(CONF_RESPONSE_TYPE, "text")
+        self.response_type = config_entry.data.get(CONF_RESPONSE_TYPE, "json")
         
         # Parse JSON configs
         self.headers = self._parse_json_config(config_entry.data.get(CONF_HEADERS, ""))
@@ -137,11 +139,17 @@ class HttpRequestDataUpdateCoordinator(DataUpdateCoordinator):
             
             if self.headers:
                 kwargs["headers"] = self.headers
-            if self.params:
-                kwargs["params"] = self.params
-            if self.body and self.method in ["POST", "PUT", "PATCH"]:
-                kwargs["json"] = self.body
             
+            # Handle params differently for POST/PUT/PATCH
+            if self.method in ["POST", "PUT", "PATCH"]:
+                if self.params:
+                    kwargs["data"] = self.params  # Use data for form params
+                if self.body:
+                    kwargs["json"] = self.body
+            else:
+                if self.params:
+                    kwargs["params"] = self.params  # Use params for query string
+                    
             async with async_timeout.timeout(self.timeout):
                 async with session.request(**kwargs) as response:
                     text = await response.text()
@@ -180,7 +188,7 @@ class HttpRequestDataUpdateCoordinator(DataUpdateCoordinator):
 class HttpRequestSensor(CoordinatorEntity, SensorEntity):
     """Representation of a HTTP Request sensor."""
 
-    _attr_has_entity_name = True
+    _attr_has_entity_name = False
 
     def __init__(
         self,
@@ -197,23 +205,26 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         
         # Set unique ID for this sensor
         sensor_name = sensor_config.get("name", DEFAULT_SENSOR_NAME)
+        service_name = config_entry.data.get("service_name", "HTTP Request")
         self._attr_unique_id = f"{config_entry.entry_id}_{idx}_{sensor_name}"
         
         # Set name
         self._attr_name = sensor_name
         
-        # Set device info
+        # Set device info for service
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, config_entry.entry_id)},
-            name=config_entry.data.get("service_name", "HTTP Request"),
+            name=service_name,
             manufacturer=MANUFACTURER,
             model=MODEL,
-            sw_version="1.2.0",
+            entry_type=dr.DeviceEntryType.SERVICE,  # 서비스 타입
         )
         
         # Store parsed values
         self._parsed_value = None
         self._response_html = None
+        self._text_matches = None
+        self._custom_attributes = {}
 
     @property
     def native_value(self) -> Any:
@@ -237,6 +248,10 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         if self.coordinator.response_type == "html" and self._response_html:
             attributes["response_html"] = self._response_html
         
+        # Add text matches for text type with regex
+        if self.coordinator.response_type == "text" and self._text_matches:
+            attributes["text_matches"] = self._text_matches
+        
         # Add parsing configuration
         if self.coordinator.response_type == "json":
             if json_path := self._sensor_config.get(CONF_JSON_PATH):
@@ -250,6 +265,9 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                 attributes["text_regex"] = regex
                 attributes["text_group"] = self._sensor_config.get(CONF_TEXT_GROUP, 1)
         
+        # Add custom attributes
+        attributes.update(self._custom_attributes)
+        
         return attributes
 
     async def async_update(self) -> None:
@@ -259,6 +277,8 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         if self.coordinator.data is None:
             self._parsed_value = None
             self._response_html = None
+            self._text_matches = None
+            self._custom_attributes = {}
             return
         
         response_data = self.coordinator.data
@@ -281,22 +301,56 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                 self._sensor_config.get(CONF_HTML_SELECTOR, "")
             )
         elif self.coordinator.response_type == "text":
-            value = parse_text(
-                response_data.get("text", ""),
-                self._sensor_config.get(CONF_TEXT_REGEX),
-                self._sensor_config.get(CONF_TEXT_GROUP, 1)
-            )
+            if regex := self._sensor_config.get(CONF_TEXT_REGEX):
+                # Get all matches for text variable
+                self._text_matches = parse_text_all(
+                    response_data.get("text", ""),
+                    regex
+                )
+                # Get specific group for sensor value
+                value = parse_text(
+                    response_data.get("text", ""),
+                    regex,
+                    self._sensor_config.get(CONF_TEXT_GROUP, 1)
+                )
+            else:
+                value = response_data.get("text")
+                self._text_matches = None
         else:
             value = response_data.get("text")
         
-        # Apply template if configured
+        # Apply value template if configured
         template_str = self._sensor_config.get(CONF_VALUE_TEMPLATE)
         if template_str:
+            template_vars = {
+                "value": value,
+                "response": response_data.get("text", ""),
+                "json": response_data.get("json"),
+                "status": response_data.get("status"),
+                "text": self._text_matches,  # Array of regex matches
+            }
             value = await render_template(
                 self.hass,
                 template_str,
-                value,
-                response_data
+                template_vars
             )
         
         self._parsed_value = value
+        
+        # Apply attributes template if configured
+        attributes_template_str = self._sensor_config.get(CONF_ATTRIBUTES_TEMPLATE)
+        if attributes_template_str:
+            template_vars = {
+                "value": value,
+                "response": response_data.get("text", ""),
+                "json": response_data.get("json"),
+                "status": response_data.get("status"),
+                "text": self._text_matches,  # Array of regex matches
+            }
+            self._custom_attributes = await render_attributes_template(
+                self.hass,
+                attributes_template_str,
+                template_vars
+            )
+        else:
+            self._custom_attributes = {}

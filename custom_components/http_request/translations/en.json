@@ -14,14 +14,14 @@
         "description": "Configure HTTP request settings.",
         "data": {
           "url": "URL",
+          "verify_ssl": "Verify SSL Certificate",
           "method": "HTTP Method",
-          "response_type": "Response Type",
-          "headers": "Headers (JSON)",
-          "params": "URL Parameters (JSON)",
+          "headers": "Request Headers (JSON)",
+          "params": "Request Parameters (JSON)",
           "body": "Request Body (JSON)",
           "timeout": "Timeout (seconds)",
-          "verify_ssl": "Verify SSL Certificate",
-          "scan_interval": "Update Interval (seconds)"
+          "scan_interval": "Update Interval (seconds)",
+          "response_type": "Response Type"
         }
       }
     },
@@ -52,14 +52,14 @@
         "data": {
           "service_name": "Service Name",
           "url": "URL",
+          "verify_ssl": "Verify SSL Certificate",
           "method": "HTTP Method",
-          "response_type": "Response Type",
-          "headers": "Headers (JSON)",
-          "params": "URL Parameters (JSON)",
+          "headers": "Request Headers (JSON)",
+          "params": "Request Parameters (JSON)",
           "body": "Request Body (JSON)",
           "timeout": "Timeout (seconds)",
-          "verify_ssl": "Verify SSL Certificate",
-          "scan_interval": "Update Interval (seconds)"
+          "scan_interval": "Update Interval (seconds)",
+          "response_type": "Response Type"
         }
       },
       "add_sensor": {
@@ -78,7 +78,8 @@
           "html_attr": "HTML Attribute (default: text)",
           "text_regex": "Regular Expression",
           "text_group": "Regex Group",
-          "value_template": "Value Template (Jinja2)"
+          "value_template": "Value Template (Jinja2)",
+          "attributes_template": "Attributes Template (JSON)"
         }
       },
       "edit_sensor": {
@@ -98,7 +99,8 @@
           "html_attr": "HTML Attribute (default: text)",
           "text_regex": "Regular Expression",
           "text_group": "Regex Group",
-          "value_template": "Value Template (Jinja2)"
+          "value_template": "Value Template (Jinja2)",
+          "attributes_template": "Attributes Template (JSON)"
         }
       },
       "remove_sensor": {
@@ -112,7 +114,8 @@
     "error": {
       "invalid_headers_json": "Invalid headers JSON format",
       "invalid_params_json": "Invalid parameters JSON format",
-      "invalid_body_json": "Invalid body JSON format"
+      "invalid_body_json": "Invalid body JSON format",
+      "invalid_attributes_json": "Invalid attributes JSON format"
     },
     "abort": {
       "no_sensors": "No sensors available"

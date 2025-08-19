@@ -30,7 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "sensors": {},
     }
 
-    # 디바이스(서비스)로 등록
+    # 서비스 타입으로 디바이스 등록
     device_registry = dr.async_get(hass)
     service_name = entry.data.get("service_name", "HTTP Request")
     
@@ -40,7 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         name=service_name,
         manufacturer=MANUFACTURER,
         model=MODEL,
-        sw_version="1.2.0",
+        entry_type=dr.DeviceEntryType.SERVICE,  # 서비스 타입으로 명시
     )
     
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
