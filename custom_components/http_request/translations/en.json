@@ -75,11 +75,25 @@
         "data": {
           "json_path": "JSON Path (e.g., data.temperature or items[0].value)",
           "html_selector": "CSS Selector",
-          "html_attr": "HTML Attribute (default: text)",
+          "html_attr_name": "HTML Attribute Name",
           "text_regex": "Regular Expression",
-          "text_group": "Regex Group",
+          "text_group_count": "Regex Group Count",
           "value_template": "Value Template (Jinja2)",
           "attributes_template": "Attributes Template (JSON)"
+        }
+      },
+      "html_value_type": {
+        "title": "HTML Value Type",
+        "description": "Select the type of value to extract from the CSS selector.",
+        "data": {
+          "html_value_type": "Value Type"
+        }
+      },
+      "edit_html_value_type": {
+        "title": "HTML Value Type",
+        "description": "Select the type of value to extract from the CSS selector.",
+        "data": {
+          "html_value_type": "Value Type"
         }
       },
       "edit_sensor": {
@@ -91,14 +105,14 @@
       },
       "edit_sensor_details": {
         "title": "Edit Sensor Settings",
-        "description": "Edit {response_type} parsing settings for '{sensor_name}' sensor.",
+        "description": "Edit parsing settings for the sensor.",
         "data": {
           "sensor_name": "Sensor Name",
           "json_path": "JSON Path (e.g., data.temperature or items[0].value)",
           "html_selector": "CSS Selector",
-          "html_attr": "HTML Attribute (default: text)",
+          "html_attr_name": "HTML Attribute Name",
           "text_regex": "Regular Expression",
-          "text_group": "Regex Group",
+          "text_group_count": "Regex Group Count",
           "value_template": "Value Template (Jinja2)",
           "attributes_template": "Attributes Template (JSON)"
         }
@@ -119,6 +133,25 @@
     },
     "abort": {
       "no_sensors": "No sensors available"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "http_request_info": {
+        "state": {
+          "on": "Connected",
+          "off": "Disconnected"
+        }
+      }
+    }
+  },
+  "selector": {
+    "html_value_type": {
+      "options": {
+        "value": "Text Value",
+        "attribute": "Attribute Value",
+        "html": "HTML Content"
+      }
     }
   }
 }

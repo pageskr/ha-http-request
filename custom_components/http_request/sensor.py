@@ -28,6 +28,8 @@ from .const import (
     CONF_HEADERS,
     CONF_HTML_ATTR,
     CONF_HTML_SELECTOR,
+    CONF_HTML_VALUE_TYPE,
+    CONF_HTML_ATTR_NAME,
     CONF_JSON_PATH,
     CONF_METHOD,
     CONF_PARAMS,
@@ -35,6 +37,7 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_SENSOR_NAME,
     CONF_TEXT_GROUP,
+    CONF_TEXT_GROUP_COUNT,
     CONF_TEXT_REGEX,
     CONF_TIMEOUT,
     CONF_URL,
@@ -43,6 +46,7 @@ from .const import (
     CONF_ATTRIBUTES_TEMPLATE,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SENSOR_NAME,
+    DEFAULT_TEXT_GROUP_COUNT,
     DEFAULT_TIMEOUT,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
@@ -188,7 +192,7 @@ class HttpRequestDataUpdateCoordinator(DataUpdateCoordinator):
 class HttpRequestSensor(CoordinatorEntity, SensorEntity):
     """Representation of a HTTP Request sensor."""
 
-    _attr_has_entity_name = False
+    _attr_has_entity_name = True
 
     def __init__(
         self,
@@ -258,12 +262,14 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                 attributes["json_path"] = json_path
         elif self.coordinator.response_type == "html":
             attributes["html_selector"] = self._sensor_config.get(CONF_HTML_SELECTOR, "")
-            if html_attr := self._sensor_config.get(CONF_HTML_ATTR):
-                attributes["html_attr"] = html_attr
+            if value_type := self._sensor_config.get(CONF_HTML_VALUE_TYPE):
+                attributes["html_value_type"] = value_type
+            if attr_name := self._sensor_config.get(CONF_HTML_ATTR_NAME):
+                attributes["html_attr_name"] = attr_name
         elif self.coordinator.response_type == "text":
             if regex := self._sensor_config.get(CONF_TEXT_REGEX):
                 attributes["text_regex"] = regex
-                attributes["text_group"] = self._sensor_config.get(CONF_TEXT_GROUP, 1)
+                attributes["text_group_count"] = self._sensor_config.get(CONF_TEXT_GROUP_COUNT, DEFAULT_TEXT_GROUP_COUNT)
         
         # Add custom attributes
         attributes.update(self._custom_attributes)
@@ -283,18 +289,30 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         
         response_data = self.coordinator.data
         
+        # Store original parsed values for templates
+        json_value = None
+        html_value = None
+        text_value = None
+        
         # Parse based on response type
         if self.coordinator.response_type == "json":
-            value = parse_json(
+            json_value = parse_json(
                 response_data.get("json") or response_data.get("text"),
                 self._sensor_config.get(CONF_JSON_PATH)
             )
+            value = json_value
         elif self.coordinator.response_type == "html":
-            value = parse_html(
+            html_value_type = self._sensor_config.get(CONF_HTML_VALUE_TYPE, "value")
+            attr_name = self._sensor_config.get(CONF_HTML_ATTR_NAME)
+            
+            html_value = parse_html(
                 response_data.get("text", ""),
                 self._sensor_config.get(CONF_HTML_SELECTOR, ""),
-                self._sensor_config.get(CONF_HTML_ATTR)
+                html_value_type,
+                attr_name
             )
+            value = html_value
+            
             # Get the full HTML of selected element
             self._response_html = parse_html_full(
                 response_data.get("text", ""),
@@ -302,19 +320,19 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             )
         elif self.coordinator.response_type == "text":
             if regex := self._sensor_config.get(CONF_TEXT_REGEX):
-                # Get all matches for text variable
+                # Get matches up to configured count
+                group_count = self._sensor_config.get(CONF_TEXT_GROUP_COUNT, DEFAULT_TEXT_GROUP_COUNT)
                 self._text_matches = parse_text_all(
                     response_data.get("text", ""),
-                    regex
-                )
-                # Get specific group for sensor value
-                value = parse_text(
-                    response_data.get("text", ""),
                     regex,
-                    self._sensor_config.get(CONF_TEXT_GROUP, 1)
+                    group_count
                 )
+                # Get first match for sensor value
+                value = self._text_matches[0] if self._text_matches else None
+                text_value = self._text_matches  # For template variable
             else:
                 value = response_data.get("text")
+                text_value = value
                 self._text_matches = None
         else:
             value = response_data.get("text")
@@ -323,11 +341,12 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         template_str = self._sensor_config.get(CONF_VALUE_TEMPLATE)
         if template_str:
             template_vars = {
-                "value": value,
-                "response": response_data.get("text", ""),
-                "json": response_data.get("json"),
+                "value": value,  # Keep for backward compatibility
+                "json": json_value,  # JSON path result
+                "html": html_value,  # HTML selector result
+                "text": text_value,  # Text regex matches or raw text
+                "response": response_data.get("text", ""),  # Raw response
                 "status": response_data.get("status"),
-                "text": self._text_matches,  # Array of regex matches
             }
             value = await render_template(
                 self.hass,
@@ -341,11 +360,12 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         attributes_template_str = self._sensor_config.get(CONF_ATTRIBUTES_TEMPLATE)
         if attributes_template_str:
             template_vars = {
-                "value": value,
-                "response": response_data.get("text", ""),
-                "json": response_data.get("json"),
+                "value": self._parsed_value,  # Keep for backward compatibility
+                "json": json_value,  # JSON path result
+                "html": html_value,  # HTML selector result
+                "text": text_value,  # Text regex matches or raw text
+                "response": response_data.get("text", ""),  # Raw response
                 "status": response_data.get("status"),
-                "text": self._text_matches,  # Array of regex matches
             }
             self._custom_attributes = await render_attributes_template(
                 self.hass,

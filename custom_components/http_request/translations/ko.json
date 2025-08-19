@@ -75,11 +75,25 @@
         "data": {
           "json_path": "JSON 경로 (예: data.temperature 또는 items[0].value)",
           "html_selector": "CSS 선택자",
-          "html_attr": "HTML 속성 (기본값: text)",
+          "html_attr_name": "HTML 속성 이름",
           "text_regex": "정규 표현식",
-          "text_group": "정규식 그룹",
+          "text_group_count": "정규식 그룹 개수",
           "value_template": "값 템플릿 (Jinja2)",
           "attributes_template": "속성 템플릿 (JSON)"
+        }
+      },
+      "html_value_type": {
+        "title": "HTML 값 유형",
+        "description": "CSS 선택자로 선택한 요소에서 가져올 값의 유형을 선택하세요.",
+        "data": {
+          "html_value_type": "값 유형"
+        }
+      },
+      "edit_html_value_type": {
+        "title": "HTML 값 유형",
+        "description": "CSS 선택자로 선택한 요소에서 가져올 값의 유형을 선택하세요.",
+        "data": {
+          "html_value_type": "값 유형"
         }
       },
       "edit_sensor": {
@@ -91,14 +105,14 @@
       },
       "edit_sensor_details": {
         "title": "센서 설정 수정",
-        "description": "'{sensor_name}' 센서의 {response_type} 파싱 설정을 수정합니다.",
+        "description": "센서의 파싱 설정을 수정합니다.",
         "data": {
           "sensor_name": "센서 이름",
           "json_path": "JSON 경로 (예: data.temperature 또는 items[0].value)",
           "html_selector": "CSS 선택자",
-          "html_attr": "HTML 속성 (기본값: text)",
+          "html_attr_name": "HTML 속성 이름",
           "text_regex": "정규 표현식",
-          "text_group": "정규식 그룹",
+          "text_group_count": "정규식 그룹 개수",
           "value_template": "값 템플릿 (Jinja2)",
           "attributes_template": "속성 템플릿 (JSON)"
         }
@@ -119,6 +133,25 @@
     },
     "abort": {
       "no_sensors": "센서가 없습니다"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "http_request_info": {
+        "state": {
+          "on": "연결됨",
+          "off": "연결 안됨"
+        }
+      }
+    }
+  },
+  "selector": {
+    "html_value_type": {
+      "options": {
+        "value": "텍스트 값",
+        "attribute": "속성 값",
+        "html": "HTML 내용"
+      }
     }
   }
 }

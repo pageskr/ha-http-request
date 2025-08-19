@@ -25,8 +25,11 @@ CONF_SENSOR_NAME: Final = "sensor_name"
 CONF_JSON_PATH: Final = "json_path"
 CONF_HTML_SELECTOR: Final = "html_selector"
 CONF_HTML_ATTR: Final = "html_attr"
+CONF_HTML_VALUE_TYPE: Final = "html_value_type"
+CONF_HTML_ATTR_NAME: Final = "html_attr_name"
 CONF_TEXT_REGEX: Final = "text_regex"
 CONF_TEXT_GROUP: Final = "text_group"
+CONF_TEXT_GROUP_COUNT: Final = "text_group_count"
 
 # Value template
 CONF_VALUE_TEMPLATE: Final = "value_template"
@@ -41,10 +44,12 @@ DEFAULT_SCAN_INTERVAL: Final = 300
 DEFAULT_RESPONSE_TYPE: Final = "json"
 DEFAULT_HTML_ATTR: Final = "text"
 DEFAULT_TEXT_GROUP: Final = 1
+DEFAULT_TEXT_GROUP_COUNT: Final = 10
 
 # Response types
 RESPONSE_TYPES: Final = ["json", "html", "text"]
 HTTP_METHODS: Final = ["GET", "POST", "PUT", "DELETE", "PATCH"]
+HTML_VALUE_TYPES: Final = ["value", "attribute", "html"]
 
 # Attributes template
 CONF_ATTRIBUTES_TEMPLATE: Final = "attributes_template"

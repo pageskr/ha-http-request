@@ -83,8 +83,8 @@ def parse_json(data: str | dict, path: str | None = None) -> Any:
         return None
 
 
-def parse_html(html_content: str, selector: str, attr: str | None = None) -> Any:
-    """Parse HTML with CSS selector."""
+def parse_html(html_content: str, selector: str, value_type: str = "value", attr_name: str | None = None) -> Any:
+    """Parse HTML with CSS selector and value type."""
     try:
         soup = BeautifulSoup(html_content, 'html.parser')
         element = soup.select_one(selector)
@@ -93,10 +93,22 @@ def parse_html(html_content: str, selector: str, attr: str | None = None) -> Any
             _LOGGER.debug("No element found for selector: %s", selector)
             return None
         
-        if attr is None or attr == "text":
+        if value_type == "value":
+            # Return text content without HTML tags
             return element.get_text(strip=True)
-        
-        return element.get(attr)
+        elif value_type == "attribute":
+            # Return specific attribute value
+            if attr_name:
+                return element.get(attr_name)
+            else:
+                _LOGGER.error("Attribute name not specified for attribute type")
+                return None
+        elif value_type == "html":
+            # Return inner HTML
+            return ''.join(str(child) for child in element.children)
+        else:
+            # Default to text
+            return element.get_text(strip=True)
     except Exception as err:
         _LOGGER.error("HTML parsing error: %s", err)
         return None
@@ -138,13 +150,16 @@ def parse_text(text: str, regex: str | None = None, group: int = 1) -> Any:
         return None
 
 
-def parse_text_all(text: str, regex: str) -> list[str] | None:
-    """Parse text and return all regex matches."""
+def parse_text_all(text: str, regex: str, max_groups: int = 10) -> list[str] | None:
+    """Parse text and return regex matches up to max_groups."""
     if not regex:
         return None
         
     try:
         matches = re.findall(regex, text, re.MULTILINE | re.DOTALL)
+        # Limit to max_groups
+        if matches and len(matches) > max_groups:
+            matches = matches[:max_groups]
         return matches if matches else None
     except Exception as err:
         _LOGGER.error("Regex error: %s", err)
