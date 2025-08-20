@@ -27,13 +27,13 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the HTTP Request info binary sensor."""
-    # Reuse the coordinator from sensor platform
-    coordinator = HttpRequestDataUpdateCoordinator(hass, config_entry)
-    
-    await coordinator.async_config_entry_first_refresh()
-    
-    # Store coordinator for sensor platform to reuse
-    hass.data[DOMAIN][config_entry.entry_id]["coordinator"] = coordinator
+    # Check if coordinator already exists
+    if "coordinator" in hass.data[DOMAIN][config_entry.entry_id]:
+        coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
+    else:
+        # Create new coordinator if not exists
+        coordinator = HttpRequestDataUpdateCoordinator(hass, config_entry)
+        hass.data[DOMAIN][config_entry.entry_id]["coordinator"] = coordinator
     
     # Add the info entity
     async_add_entities([HttpRequestInfoEntity(coordinator, config_entry)], True)
@@ -95,7 +95,7 @@ class HttpRequestInfoEntity(CoordinatorEntity, BinarySensorEntity):
             "timeout": self.coordinator.timeout,
             "verify_ssl": self.coordinator.verify_ssl,
             "scan_interval": self.coordinator.update_interval.total_seconds() if self.coordinator.update_interval else None,
-            "last_scan_time": self.coordinator.last_update_success_time,
+            "last_scan_time": self.coordinator.last_update_success,
         }
         
         # Add response headers if available

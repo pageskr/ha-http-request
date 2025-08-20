@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, MANUFACTURER, MODEL
+from .sensor import HttpRequestDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,9 +26,15 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up HTTP Request from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+    
+    # Create coordinator
+    coordinator = HttpRequestDataUpdateCoordinator(hass, entry)
+    await coordinator.async_config_entry_first_refresh()
+    
     hass.data[DOMAIN][entry.entry_id] = {
         "entry": entry,
         "sensors": {},
+        "coordinator": coordinator,
     }
 
     # 서비스 타입으로 디바이스 등록

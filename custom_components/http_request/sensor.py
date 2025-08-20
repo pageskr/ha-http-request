@@ -72,7 +72,6 @@ async def async_setup_entry(
     else:
         # Create new coordinator if not exists
         coordinator = HttpRequestDataUpdateCoordinator(hass, config_entry)
-        await coordinator.async_config_entry_first_refresh()
         hass.data[DOMAIN][config_entry.entry_id]["coordinator"] = coordinator
     
     # Get sensors configuration
@@ -256,7 +255,7 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         attributes = {
             "sensor_index": self._idx,
             "sensor_name": self._sensor_config.get("name", DEFAULT_SENSOR_NAME),
-            "last_scan_time": self.coordinator.last_update_success_time,
+            "last_scan_time": self.coordinator.last_update_success,
             "sensor_update": self._last_update,
         }
         
