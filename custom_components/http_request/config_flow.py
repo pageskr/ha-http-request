@@ -8,7 +8,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_NAME, CONF_UNIT_OF_MEASUREMENT
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv
@@ -34,6 +34,7 @@ from .const import (
     CONF_VERIFY_SSL,
     CONF_SENSOR_NAME,
     CONF_ATTRIBUTES_TEMPLATE,
+    CONF_KEEP_LAST_VALUE,
     DEFAULT_HTML_ATTR,
     DEFAULT_METHOD,
     DEFAULT_NAME,
@@ -253,12 +254,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             # Store sensor name temporarily
             self.temp_sensor_name = user_input.get(CONF_SENSOR_NAME, DEFAULT_SENSOR_NAME)
-            response_type = self.config_entry.data.get(CONF_RESPONSE_TYPE, DEFAULT_RESPONSE_TYPE)
-            
-            if response_type == "html":
-                return await self.async_step_html_value_type()
-            else:
-                return await self.async_step_sensor_parsing()
+            return await self.async_step_sensor_parsing()
 
         data_schema = vol.Schema(
             {
@@ -268,25 +264,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         return self.async_show_form(
             step_id="add_sensor",
-            data_schema=data_schema,
-        )
-
-    async def async_step_html_value_type(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle HTML value type selection."""
-        if user_input is not None:
-            self.temp_html_value_type = user_input[CONF_HTML_VALUE_TYPE]
-            return await self.async_step_sensor_parsing()
-
-        data_schema = vol.Schema(
-            {
-                vol.Required(CONF_HTML_VALUE_TYPE, default="value"): vol.In(HTML_VALUE_TYPES),
-            }
-        )
-
-        return self.async_show_form(
-            step_id="html_value_type",
             data_schema=data_schema,
         )
 
@@ -314,10 +291,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     "name": self.temp_sensor_name,
                 }
                 
-                # Add HTML value type if applicable
-                if hasattr(self, 'temp_html_value_type'):
-                    new_sensor[CONF_HTML_VALUE_TYPE] = self.temp_html_value_type
-                
                 # Add all user input
                 new_sensor.update(user_input)
                 
@@ -343,23 +316,22 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(CONF_JSON_PATH, default=""): str,
                     vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
                     vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=""): str,
+                    vol.Optional(CONF_KEEP_LAST_VALUE, default=False): bool,
                 }
             )
         elif response_type == "html":
-            schema_dict = {
-                vol.Required(CONF_HTML_SELECTOR): str,
-            }
-            
-            # Add attribute name field if attribute type is selected
-            if hasattr(self, 'temp_html_value_type') and self.temp_html_value_type == "attribute":
-                schema_dict[vol.Required(CONF_HTML_ATTR_NAME)] = str
-            
-            schema_dict.update({
-                vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
-                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
-            })
-            
-            data_schema = vol.Schema(schema_dict)
+            data_schema = vol.Schema(
+                {
+                    vol.Required(CONF_HTML_SELECTOR): str,
+                    vol.Required(CONF_HTML_VALUE_TYPE, default="value"): vol.In(HTML_VALUE_TYPES),
+                    vol.Optional(CONF_HTML_ATTR_NAME, default=""): str,
+                    vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=""): str,
+                    vol.Optional(CONF_KEEP_LAST_VALUE, default=False): bool,
+                }
+            )
         elif response_type == "text":
             data_schema = vol.Schema(
                 {
@@ -369,6 +341,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                     vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
                     vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=""): str,
+                    vol.Optional(CONF_KEEP_LAST_VALUE, default=False): bool,
                 }
             )
         else:
@@ -376,6 +350,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 {
                     vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
                     vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=""): str,
+                    vol.Optional(CONF_KEEP_LAST_VALUE, default=False): bool,
                 }
             )
 
@@ -399,13 +375,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             # Store selected sensor index
             self.sensor_index_to_edit = int(user_input["sensor_to_edit"])
             self.sensor_to_edit = sensors[self.sensor_index_to_edit]
-            
-            response_type = self.config_entry.data.get(CONF_RESPONSE_TYPE, DEFAULT_RESPONSE_TYPE)
-            if response_type == "html" and CONF_HTML_VALUE_TYPE not in self.sensor_to_edit:
-                # For old sensors without value type, ask for it
-                return await self.async_step_edit_html_value_type()
-            else:
-                return await self.async_step_edit_sensor_details()
+            return await self.async_step_edit_sensor_details()
         
         # Create options for sensor selection
         sensor_options = {
@@ -421,26 +391,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         
         return self.async_show_form(
             step_id="edit_sensor",
-            data_schema=data_schema,
-        )
-
-    async def async_step_edit_html_value_type(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle HTML value type selection for edit."""
-        if user_input is not None:
-            self.temp_html_value_type = user_input[CONF_HTML_VALUE_TYPE]
-            return await self.async_step_edit_sensor_details()
-
-        current_type = self.sensor_to_edit.get(CONF_HTML_VALUE_TYPE, "value")
-        data_schema = vol.Schema(
-            {
-                vol.Required(CONF_HTML_VALUE_TYPE, default=current_type): vol.In(HTML_VALUE_TYPES),
-            }
-        )
-
-        return self.async_show_form(
-            step_id="edit_html_value_type",
             data_schema=data_schema,
         )
 
@@ -467,12 +417,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 updated_sensor = {
                     "name": user_input.get(CONF_SENSOR_NAME, self.sensor_to_edit["name"]),
                 }
-                
-                # Add HTML value type if applicable
-                if hasattr(self, 'temp_html_value_type'):
-                    updated_sensor[CONF_HTML_VALUE_TYPE] = self.temp_html_value_type
-                elif CONF_HTML_VALUE_TYPE in self.sensor_to_edit:
-                    updated_sensor[CONF_HTML_VALUE_TYPE] = self.sensor_to_edit[CONF_HTML_VALUE_TYPE]
                 
                 # Process all fields, converting empty strings to None for removal
                 for key, value in user_input.items():
@@ -510,18 +454,18 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(CONF_JSON_PATH, default=self.sensor_to_edit.get(CONF_JSON_PATH, "")): str,
                 vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
                 vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
+                vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=self.sensor_to_edit.get(CONF_UNIT_OF_MEASUREMENT, "")): str,
+                vol.Optional(CONF_KEEP_LAST_VALUE, default=self.sensor_to_edit.get(CONF_KEEP_LAST_VALUE, False)): bool,
             })
         elif response_type == "html":
-            schema_dict[vol.Required(CONF_HTML_SELECTOR, default=self.sensor_to_edit.get(CONF_HTML_SELECTOR, ""))] = str
-            
-            # Add attribute name field if attribute type is selected
-            html_value_type = getattr(self, 'temp_html_value_type', self.sensor_to_edit.get(CONF_HTML_VALUE_TYPE, "value"))
-            if html_value_type == "attribute":
-                schema_dict[vol.Required(CONF_HTML_ATTR_NAME, default=self.sensor_to_edit.get(CONF_HTML_ATTR_NAME, ""))] = str
-            
             schema_dict.update({
+                vol.Required(CONF_HTML_SELECTOR, default=self.sensor_to_edit.get(CONF_HTML_SELECTOR, "")): str,
+                vol.Required(CONF_HTML_VALUE_TYPE, default=self.sensor_to_edit.get(CONF_HTML_VALUE_TYPE, "value")): vol.In(HTML_VALUE_TYPES),
+                vol.Optional(CONF_HTML_ATTR_NAME, default=self.sensor_to_edit.get(CONF_HTML_ATTR_NAME, "")): str,
                 vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
                 vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
+                vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=self.sensor_to_edit.get(CONF_UNIT_OF_MEASUREMENT, "")): str,
+                vol.Optional(CONF_KEEP_LAST_VALUE, default=self.sensor_to_edit.get(CONF_KEEP_LAST_VALUE, False)): bool,
             })
         elif response_type == "text":
             schema_dict.update({
@@ -531,11 +475,15 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ),
                 vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
                 vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
+                vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=self.sensor_to_edit.get(CONF_UNIT_OF_MEASUREMENT, "")): str,
+                vol.Optional(CONF_KEEP_LAST_VALUE, default=self.sensor_to_edit.get(CONF_KEEP_LAST_VALUE, False)): bool,
             })
         else:
             schema_dict.update({
                 vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
                 vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
+                vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=self.sensor_to_edit.get(CONF_UNIT_OF_MEASUREMENT, "")): str,
+                vol.Optional(CONF_KEEP_LAST_VALUE, default=self.sensor_to_edit.get(CONF_KEEP_LAST_VALUE, False)): bool,
             })
         
         data_schema = vol.Schema(schema_dict)

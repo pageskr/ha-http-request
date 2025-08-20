@@ -9,9 +9,9 @@ from typing import Any
 import aiohttp
 import async_timeout
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_NAME, CONF_UNIT_OF_MEASUREMENT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import device_registry as dr
@@ -44,6 +44,7 @@ from .const import (
     CONF_VALUE_TEMPLATE,
     CONF_VERIFY_SSL,
     CONF_ATTRIBUTES_TEMPLATE,
+    CONF_KEEP_LAST_VALUE,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SENSOR_NAME,
     DEFAULT_TEXT_GROUP_COUNT,
@@ -224,8 +225,14 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             entry_type=dr.DeviceEntryType.SERVICE,  # 서비스 타입
         )
         
+        # Set unit of measurement if configured
+        unit = sensor_config.get(CONF_UNIT_OF_MEASUREMENT)
+        if unit:
+            self._attr_unit_of_measurement = unit
+        
         # Store parsed values
         self._parsed_value = None
+        self._last_valid_value = None  # For keeping last value
         self._response_html = None
         self._text_matches = None
         self._custom_attributes = {}
@@ -270,6 +277,10 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             if regex := self._sensor_config.get(CONF_TEXT_REGEX):
                 attributes["text_regex"] = regex
                 attributes["text_group_count"] = self._sensor_config.get(CONF_TEXT_GROUP_COUNT, DEFAULT_TEXT_GROUP_COUNT)
+        
+        # Add unit of measurement to attributes if configured
+        if hasattr(self, '_attr_unit_of_measurement'):
+            attributes["unit_of_measurement"] = self._attr_unit_of_measurement
         
         # Add custom attributes
         attributes.update(self._custom_attributes)
@@ -348,13 +359,42 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                 "response": response_data.get("text", ""),  # Raw response
                 "status": response_data.get("status"),
             }
-            value = await render_template(
-                self.hass,
-                template_str,
-                template_vars
-            )
+            try:
+                value = await render_template(
+                    self.hass,
+                    template_str,
+                    template_vars
+                )
+            except Exception as e:
+                _LOGGER.debug("Template error: %s", e)
+                # If keep_last_value is enabled and template fails, keep last value
+                if self._sensor_config.get(CONF_KEEP_LAST_VALUE, False) and self._last_valid_value is not None:
+                    value = self._last_valid_value
+                else:
+                    value = None
+        
+        # Check if we should keep last value
+        if self._sensor_config.get(CONF_KEEP_LAST_VALUE, False):
+            if value in ["unknown", "unavailable", None]:
+                if self._last_valid_value is not None:
+                    value = self._last_valid_value
+            else:
+                # Update last valid value
+                self._last_valid_value = value
         
         self._parsed_value = value
+        
+        # Auto-detect state class for numeric values with units
+        if hasattr(self, '_attr_unit_of_measurement') and self._attr_unit_of_measurement:
+            try:
+                # Check if the value is numeric
+                float(value)
+                # Set state_class to measurement for statistics
+                self._attr_state_class = SensorStateClass.MEASUREMENT
+            except (ValueError, TypeError):
+                # Not numeric, remove state_class if set
+                if hasattr(self, '_attr_state_class'):
+                    delattr(self, '_attr_state_class')
         
         # Apply attributes template if configured
         attributes_template_str = self._sensor_config.get(CONF_ATTRIBUTES_TEMPLATE)

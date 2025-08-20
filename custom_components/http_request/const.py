@@ -33,6 +33,7 @@ CONF_TEXT_GROUP_COUNT: Final = "text_group_count"
 
 # Value template
 CONF_VALUE_TEMPLATE: Final = "value_template"
+CONF_KEEP_LAST_VALUE: Final = "keep_last_value"
 
 # Defaults
 DEFAULT_NAME: Final = "HTTP Request"

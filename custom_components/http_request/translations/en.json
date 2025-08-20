@@ -75,25 +75,14 @@
         "data": {
           "json_path": "JSON Path (e.g., data.temperature or items[0].value)",
           "html_selector": "CSS Selector",
-          "html_attr_name": "HTML Attribute Name",
+          "html_value_type": "HTML Value Type",
+          "html_attr_name": "HTML Attribute Name (only used for attribute type)",
           "text_regex": "Regular Expression",
           "text_group_count": "Regex Group Count",
           "value_template": "Value Template (Jinja2)",
-          "attributes_template": "Attributes Template (JSON)"
-        }
-      },
-      "html_value_type": {
-        "title": "HTML Value Type",
-        "description": "Select the type of value to extract from the CSS selector.",
-        "data": {
-          "html_value_type": "Value Type"
-        }
-      },
-      "edit_html_value_type": {
-        "title": "HTML Value Type",
-        "description": "Select the type of value to extract from the CSS selector.",
-        "data": {
-          "html_value_type": "Value Type"
+          "attributes_template": "Attributes Template (JSON)",
+          "unit_of_measurement": "Unit of Measurement",
+          "keep_last_value": "Keep Last Value"
         }
       },
       "edit_sensor": {
@@ -110,11 +99,14 @@
           "sensor_name": "Sensor Name",
           "json_path": "JSON Path (e.g., data.temperature or items[0].value)",
           "html_selector": "CSS Selector",
-          "html_attr_name": "HTML Attribute Name",
+          "html_value_type": "HTML Value Type",
+          "html_attr_name": "HTML Attribute Name (only used for attribute type)",
           "text_regex": "Regular Expression",
           "text_group_count": "Regex Group Count",
           "value_template": "Value Template (Jinja2)",
-          "attributes_template": "Attributes Template (JSON)"
+          "attributes_template": "Attributes Template (JSON)",
+          "unit_of_measurement": "Unit of Measurement",
+          "keep_last_value": "Keep Last Value"
         }
       },
       "remove_sensor": {
