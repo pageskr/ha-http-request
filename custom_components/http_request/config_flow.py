@@ -291,8 +291,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     "name": self.temp_sensor_name,
                 }
                 
-                # Add all user input
-                new_sensor.update(user_input)
+                # Process all fields, converting empty strings to None for removal
+                for key, value in user_input.items():
+                    if value == "" or (isinstance(value, str) and value.strip() == ""):
+                        # Don't add empty fields
+                        pass
+                    else:
+                        new_sensor[key] = value
                 
                 sensors.append(new_sensor)
                 new_data["sensors"] = sensors
@@ -421,9 +426,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 # Process all fields, converting empty strings to None for removal
                 for key, value in user_input.items():
                     if key != CONF_SENSOR_NAME:
-                        if value == "":
-                            # Don't add empty fields
-                            pass
+                        if value == "" or (isinstance(value, str) and value.strip() == ""):
+                            # Don't add empty fields - check if field exists in old sensor
+                            if key in self.sensor_to_edit:
+                                # Field existed before but now empty, so don't include it
+                                pass
                         else:
                             updated_sensor[key] = value
                 

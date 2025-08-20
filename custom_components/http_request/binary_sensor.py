@@ -95,6 +95,7 @@ class HttpRequestInfoEntity(CoordinatorEntity, BinarySensorEntity):
             "timeout": self.coordinator.timeout,
             "verify_ssl": self.coordinator.verify_ssl,
             "scan_interval": self.coordinator.update_interval.total_seconds() if self.coordinator.update_interval else None,
+            "last_scan_time": self.coordinator.last_update_success_time,
         }
         
         # Add response headers if available

@@ -150,15 +150,15 @@ def parse_text(text: str, regex: str | None = None, group: int = 1) -> Any:
         return None
 
 
-def parse_text_all(text: str, regex: str, max_groups: int = 10) -> list[str] | None:
-    """Parse text and return regex matches up to max_groups."""
+def parse_text_all(text: str, regex: str, max_groups: int | None = None) -> list[str] | None:
+    """Parse text and return all regex matches, optionally limited to max_groups."""
     if not regex:
         return None
         
     try:
         matches = re.findall(regex, text, re.MULTILINE | re.DOTALL)
-        # Limit to max_groups
-        if matches and len(matches) > max_groups:
+        # Limit to max_groups only if specified
+        if matches and max_groups is not None and len(matches) > max_groups:
             matches = matches[:max_groups]
         return matches if matches else None
     except Exception as err:

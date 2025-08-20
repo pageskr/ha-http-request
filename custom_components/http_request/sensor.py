@@ -22,6 +22,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_BODY,
@@ -235,7 +236,9 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         self._last_valid_value = None  # For keeping last value
         self._response_html = None
         self._text_matches = None
+        self._text_total_count = 0  # Total count of text matches
         self._custom_attributes = {}
+        self._last_update = None  # Last sensor update time
 
     @property
     def native_value(self) -> Any:
@@ -253,6 +256,8 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         attributes = {
             "sensor_index": self._idx,
             "sensor_name": self._sensor_config.get("name", DEFAULT_SENSOR_NAME),
+            "last_scan_time": self.coordinator.last_update_success_time,
+            "sensor_update": self._last_update,
         }
         
         # Add response HTML for HTML type
@@ -260,8 +265,11 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             attributes["response_html"] = self._response_html
         
         # Add text matches for text type with regex
-        if self.coordinator.response_type == "text" and self._text_matches:
-            attributes["text_matches"] = self._text_matches
+        if self.coordinator.response_type == "text":
+            if self._text_matches:
+                attributes["text_matches"] = self._text_matches
+            if self._sensor_config.get(CONF_TEXT_REGEX):
+                attributes["text_total_count"] = self._text_total_count
         
         # Add parsing configuration
         if self.coordinator.response_type == "json":
@@ -292,10 +300,12 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         await super().async_update()
         
         if self.coordinator.data is None:
-            self._parsed_value = None
-            self._response_html = None
-            self._text_matches = None
-            self._custom_attributes = {}
+            if not self._sensor_config.get(CONF_KEEP_LAST_VALUE, False):
+                self._parsed_value = None
+                self._response_html = None
+                self._text_matches = None
+                self._text_total_count = 0
+                self._custom_attributes = {}
             return
         
         response_data = self.coordinator.data
@@ -324,27 +334,40 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             )
             value = html_value
             
-            # Get the full HTML of selected element
-            self._response_html = parse_html_full(
+            # Get the full HTML of selected element (always store the full HTML)
+            full_html = parse_html_full(
                 response_data.get("text", ""),
                 self._sensor_config.get(CONF_HTML_SELECTOR, "")
             )
+            self._response_html = full_html
+            # Use full HTML for template variable
+            html_value = full_html
         elif self.coordinator.response_type == "text":
             if regex := self._sensor_config.get(CONF_TEXT_REGEX):
-                # Get matches up to configured count
-                group_count = self._sensor_config.get(CONF_TEXT_GROUP_COUNT, DEFAULT_TEXT_GROUP_COUNT)
-                self._text_matches = parse_text_all(
+                # Get ALL matches for template variable
+                all_matches = parse_text_all(
                     response_data.get("text", ""),
                     regex,
-                    group_count
+                    None  # No limit for template variable
                 )
+                # Store total count
+                self._text_total_count = len(all_matches) if all_matches else 0
+                
+                # Get matches up to configured count for attribute
+                group_count = self._sensor_config.get(CONF_TEXT_GROUP_COUNT, DEFAULT_TEXT_GROUP_COUNT)
+                if all_matches and len(all_matches) > group_count:
+                    self._text_matches = all_matches[:group_count]
+                else:
+                    self._text_matches = all_matches
+                
                 # Get first match for sensor value
-                value = self._text_matches[0] if self._text_matches else None
-                text_value = self._text_matches  # For template variable
+                value = all_matches[0] if all_matches else None
+                text_value = all_matches  # All matches for template variable
             else:
                 value = response_data.get("text")
                 text_value = value
                 self._text_matches = None
+                self._text_total_count = 0
         else:
             value = response_data.get("text")
         
@@ -375,14 +398,20 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         
         # Check if we should keep last value
         if self._sensor_config.get(CONF_KEEP_LAST_VALUE, False):
-            if value in ["unknown", "unavailable", None]:
+            # Check for none, unknown, unavailable values
+            if value is None or str(value).lower() in ["unknown", "unavailable", "none"]:
                 if self._last_valid_value is not None:
                     value = self._last_valid_value
             else:
-                # Update last valid value
+                # Update last valid value only if it's a valid value
                 self._last_valid_value = value
         
-        self._parsed_value = value
+        # Only update if value changed or keep_last_value is not enabled
+        if not self._sensor_config.get(CONF_KEEP_LAST_VALUE, False) or value != self._parsed_value:
+            self._parsed_value = value
+        
+        # Always update the last update time
+        self._last_update = dt_util.now()
         
         # Auto-detect state class for numeric values with units
         if hasattr(self, '_attr_unit_of_measurement') and self._attr_unit_of_measurement:
