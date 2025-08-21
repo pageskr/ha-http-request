@@ -115,24 +115,26 @@ def parse_html(html_content: str, selector: str, value_type: str = "value", attr
 
 
 def parse_html_full(html_content: str, selector: str) -> str | None:
-    """Parse HTML and return the outer HTML of selected element."""
+    """Parse HTML and return the outer HTML of selected element.
+    If selector is empty or element not found, returns None.
+    """
     try:
         if not selector:
-            # If no selector, return entire HTML content
-            return html_content
+            # If no selector, return None
+            return None
             
         soup = BeautifulSoup(html_content, 'html.parser')
         element = soup.select_one(selector)
         
         if element is None:
             _LOGGER.debug("No element found for selector: %s", selector)
-            return html_content  # Return full HTML if selector not found
+            return None
         
-        # Return the outer HTML of the selected element
+        # Return the outer HTML of the selected element (including the tag itself)
         return str(element)
     except Exception as err:
         _LOGGER.error("HTML parsing error: %s", err)
-        return html_content  # Return full HTML on error
+        return None
 
 
 def parse_text(text: str, regex: str | None = None, group: int = 1) -> Any:

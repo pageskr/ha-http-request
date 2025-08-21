@@ -239,6 +239,7 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         # Store parsed values
         self._parsed_value = None
         self._last_valid_value = None  # For keeping last value
+        self._last_valid_state_value = None  # For keeping sensor's last state value
         self._response_html = None
         self._text_matches = None
         self._text_total_count = 0  # Total count of text matches
@@ -331,9 +332,14 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             attr_name = self._sensor_config.get(CONF_HTML_ATTR_NAME)
             
             # Get the full HTML content (entire response) for template variable
-            full_html = response_data.get("text", "")
-            self._response_html = full_html
-            html_value = full_html  # Use full HTML response for template variable
+            html_value = response_data.get("text", "")  # Full HTML response for template variable
+            
+            # Get the outer HTML of selected element for response_html attribute
+            selected_html = parse_html_full(
+                response_data.get("text", ""),
+                self._sensor_config.get(CONF_HTML_SELECTOR, "")
+            )
+            self._response_html = selected_html  # Outer HTML of selected element
             
             # Parse value based on value type for sensor state
             value = parse_html(
@@ -388,43 +394,40 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                     template_str,
                     template_vars
                 )
-                # Check if template result is valid
-                template_str_lower = str(template_result).lower() if template_result is not None else "none"
-                if template_result is not None and template_str_lower not in ["unknown", "unavailable", "none"]:
-                    value = template_result
-                else:
-                    # Template result is invalid
-                    if self._sensor_config.get(CONF_KEEP_LAST_VALUE, False) and self._last_valid_value is not None:
-                        value = self._last_valid_value  # Keep last valid value
-                        # Don't update parsed value here yet
+                # Check if keep_last_value is enabled and template result is invalid
+                if self._sensor_config.get(CONF_KEEP_LAST_VALUE, False):
+                    template_str_lower = str(template_result).lower() if template_result is not None else "none"
+                    if template_result is None or template_str_lower in ["false", "none", "unknown", "unavailable"]:
+                        # Template result is invalid and keep_last_value is enabled
+                        if self._last_valid_state_value is not None:
+                            value = self._last_valid_state_value  # Keep sensor's last state value
+                        else:
+                            value = template_result  # No previous state to keep
                     else:
                         value = template_result
+                else:
+                    # Keep_last_value is not enabled, use template result as-is
+                    value = template_result
             except Exception as e:
                 _LOGGER.debug("Template error: %s", e)
-                # If keep_last_value is enabled and template fails, keep last value
-                if self._sensor_config.get(CONF_KEEP_LAST_VALUE, False) and self._last_valid_value is not None:
-                    value = self._last_valid_value
+                # If keep_last_value is enabled and template fails, keep sensor's last state value
+                if self._sensor_config.get(CONF_KEEP_LAST_VALUE, False):
+                    if self._last_valid_state_value is not None:
+                        value = self._last_valid_state_value  # Keep sensor's last state value
+                    else:
+                        value = None  # No previous state to keep
                 else:
+                    # Keep_last_value is not enabled, set to None
                     value = None
         
-        # Check if we should keep last value
-        if self._sensor_config.get(CONF_KEEP_LAST_VALUE, False):
-            # Check for none, unknown, unavailable values
-            value_str_lower = str(value).lower() if value is not None else "none"
-            if value is None or value_str_lower in ["unknown", "unavailable", "none"]:
-                if self._last_valid_value is not None:
-                    # Keep last valid value, don't update
-                    self._parsed_value = self._last_valid_value
-                else:
-                    # No last valid value to keep
-                    self._parsed_value = value
-            else:
-                # Update last valid value and parsed value
-                self._last_valid_value = value
-                self._parsed_value = value
-        else:
-            # Not keeping last value, always update
-            self._parsed_value = value
+        # Update parsed value
+        self._parsed_value = value
+        
+        # Store the current valid state value for next update
+        if value is not None:
+            value_str_lower = str(value).lower()
+            if value_str_lower not in ["false", "none", "unknown", "unavailable"]:
+                self._last_valid_state_value = value
         
         # Always update the last update time
         self._last_update = dt_util.now()

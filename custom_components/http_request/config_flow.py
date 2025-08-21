@@ -291,13 +291,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     "name": self.temp_sensor_name,
                 }
                 
-                # Process all fields, converting empty strings to None for removal
+                # Add all non-empty fields from user input
                 for key, value in user_input.items():
-                    if value == "" or (isinstance(value, str) and value.strip() == ""):
-                        # Don't add empty fields
-                        pass
-                    else:
-                        new_sensor[key] = value
+                    if key != "name":  # name is already added
+                        if value != "" and not (isinstance(value, str) and value.strip() == ""):
+                            new_sensor[key] = value
                 
                 sensors.append(new_sensor)
                 new_data["sensors"] = sensors
@@ -362,15 +360,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         # Set description based on response type
         response_type = self.config_entry.data.get(CONF_RESPONSE_TYPE, DEFAULT_RESPONSE_TYPE)
-        description_placeholders = {}
-        if response_type == "html":
-            description_placeholders["parsing_description"] = "HTML 응답을 파싱하기 위한 설정을 구성합니다."
-        elif response_type == "json":
-            description_placeholders["parsing_description"] = "JSON 응답을 파싱하기 위한 설정을 구성합니다."
-        elif response_type == "text":
-            description_placeholders["parsing_description"] = "Text 응답을 파싱하기 위한 설정을 구성합니다."
-        else:
-            description_placeholders["parsing_description"] = "센서의 파싱 설정을 수정합니다."
+        description_placeholders = {
+            "response_type": response_type.upper()
+        }
             
         return self.async_show_form(
             step_id="sensor_parsing",
@@ -435,16 +427,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     "name": user_input.get(CONF_SENSOR_NAME, self.sensor_to_edit["name"]),
                 }
                 
-                # Process all fields, converting empty strings to None for removal
+                # Add only non-empty fields from user input
                 for key, value in user_input.items():
                     if key != CONF_SENSOR_NAME:
-                        if value == "" or (isinstance(value, str) and value.strip() == ""):
-                            # Don't add empty fields - check if field exists in old sensor
-                            if key in self.sensor_to_edit:
-                                # Field existed before but now empty, so don't include it
-                                pass
-                        else:
+                        if value != "" and not (isinstance(value, str) and value.strip() == ""):
                             updated_sensor[key] = value
+                        # If value is empty and field existed before, it will be removed by not including it
                 
                 sensors[self.sensor_index_to_edit] = updated_sensor
                 new_data["sensors"] = sensors
@@ -508,15 +496,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         data_schema = vol.Schema(schema_dict)
 
         # Set description based on response type
-        description_placeholders = {}
-        if response_type == "html":
-            description_placeholders["parsing_description"] = "HTML 응답을 파싱하기 위한 설정을 구성합니다."
-        elif response_type == "json":
-            description_placeholders["parsing_description"] = "JSON 응답을 파싱하기 위한 설정을 구성합니다."
-        elif response_type == "text":
-            description_placeholders["parsing_description"] = "Text 응답을 파싱하기 위한 설정을 구성합니다."
-        else:
-            description_placeholders["parsing_description"] = "센서의 파싱 설정을 수정합니다."
+        response_type = self.config_entry.data.get(CONF_RESPONSE_TYPE, DEFAULT_RESPONSE_TYPE)
+        description_placeholders = {
+            "response_type": response_type.upper()
+        }
 
         return self.async_show_form(
             step_id="edit_sensor_details",
