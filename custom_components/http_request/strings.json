@@ -71,7 +71,7 @@
       },
       "sensor_parsing": {
         "title": "센서 파싱 설정",
-        "description": "{response_type} 응답을 파싱하기 위한 설정을 구성합니다.",
+        "description": "{parsing_description}",
         "data": {
           "json_path": "JSON 경로 (예: data.temperature 또는 items[0].value)",
           "html_selector": "CSS 선택자",
@@ -94,7 +94,7 @@
       },
       "edit_sensor_details": {
         "title": "센서 설정 수정",
-        "description": "{response_type} 응답을 파싱하기 위한 설정을 구성합니다.",
+        "description": "{parsing_description}",
         "data": {
           "sensor_name": "센서 이름",
           "json_path": "JSON 경로 (예: data.temperature 또는 items[0].value)",

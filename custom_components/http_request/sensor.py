@@ -120,6 +120,9 @@ class HttpRequestDataUpdateCoordinator(DataUpdateCoordinator):
             name=f"{DOMAIN}_{config_entry.entry_id}",
             update_interval=timedelta(seconds=scan_interval),
         )
+        
+        # Store last update time
+        self.last_update_success_time = None
 
     def _parse_json_config(self, json_str: str) -> dict[str, Any]:
         """Parse JSON string from config."""
@@ -172,6 +175,9 @@ class HttpRequestDataUpdateCoordinator(DataUpdateCoordinator):
                             json_data = await response.json(content_type=None)
                         except Exception:
                             _LOGGER.debug("Failed to parse response as JSON")
+                    
+                    # Update last success time
+                    self.last_update_success_time = dt_util.now()
                     
                     # Store response data
                     return {
@@ -255,8 +261,7 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         attributes = {
             "sensor_index": self._idx,
             "sensor_name": self._sensor_config.get("name", DEFAULT_SENSOR_NAME),
-            "last_scan_time": self.coordinator.last_update_success,
-            "sensor_update": self._last_update,
+            "sensor_update": dt_util.now(),  # Always update to current time
         }
         
         # Add response HTML for HTML type
@@ -325,22 +330,18 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             html_value_type = self._sensor_config.get(CONF_HTML_VALUE_TYPE, "value")
             attr_name = self._sensor_config.get(CONF_HTML_ATTR_NAME)
             
-            html_value = parse_html(
+            # Get the full HTML content (entire response) for template variable
+            full_html = response_data.get("text", "")
+            self._response_html = full_html
+            html_value = full_html  # Use full HTML response for template variable
+            
+            # Parse value based on value type for sensor state
+            value = parse_html(
                 response_data.get("text", ""),
                 self._sensor_config.get(CONF_HTML_SELECTOR, ""),
                 html_value_type,
                 attr_name
             )
-            value = html_value
-            
-            # Get the full HTML of selected element (always store the full HTML)
-            full_html = parse_html_full(
-                response_data.get("text", ""),
-                self._sensor_config.get(CONF_HTML_SELECTOR, "")
-            )
-            self._response_html = full_html
-            # Use full HTML for template variable
-            html_value = full_html
         elif self.coordinator.response_type == "text":
             if regex := self._sensor_config.get(CONF_TEXT_REGEX):
                 # Get ALL matches for template variable
@@ -382,11 +383,22 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                 "status": response_data.get("status"),
             }
             try:
-                value = await render_template(
+                template_result = await render_template(
                     self.hass,
                     template_str,
                     template_vars
                 )
+                # Check if template result is valid
+                template_str_lower = str(template_result).lower() if template_result is not None else "none"
+                if template_result is not None and template_str_lower not in ["unknown", "unavailable", "none"]:
+                    value = template_result
+                else:
+                    # Template result is invalid
+                    if self._sensor_config.get(CONF_KEEP_LAST_VALUE, False) and self._last_valid_value is not None:
+                        value = self._last_valid_value  # Keep last valid value
+                        # Don't update parsed value here yet
+                    else:
+                        value = template_result
             except Exception as e:
                 _LOGGER.debug("Template error: %s", e)
                 # If keep_last_value is enabled and template fails, keep last value
@@ -398,15 +410,20 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         # Check if we should keep last value
         if self._sensor_config.get(CONF_KEEP_LAST_VALUE, False):
             # Check for none, unknown, unavailable values
-            if value is None or str(value).lower() in ["unknown", "unavailable", "none"]:
+            value_str_lower = str(value).lower() if value is not None else "none"
+            if value is None or value_str_lower in ["unknown", "unavailable", "none"]:
                 if self._last_valid_value is not None:
-                    value = self._last_valid_value
+                    # Keep last valid value, don't update
+                    self._parsed_value = self._last_valid_value
+                else:
+                    # No last valid value to keep
+                    self._parsed_value = value
             else:
-                # Update last valid value only if it's a valid value
+                # Update last valid value and parsed value
                 self._last_valid_value = value
-        
-        # Only update if value changed or keep_last_value is not enabled
-        if not self._sensor_config.get(CONF_KEEP_LAST_VALUE, False) or value != self._parsed_value:
+                self._parsed_value = value
+        else:
+            # Not keeping last value, always update
             self._parsed_value = value
         
         # Always update the last update time
@@ -416,13 +433,17 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         if hasattr(self, '_attr_unit_of_measurement') and self._attr_unit_of_measurement:
             try:
                 # Check if the value is numeric
-                float(value)
+                float(self._parsed_value)
                 # Set state_class to measurement for statistics
                 self._attr_state_class = SensorStateClass.MEASUREMENT
             except (ValueError, TypeError):
                 # Not numeric, remove state_class if set
                 if hasattr(self, '_attr_state_class'):
                     delattr(self, '_attr_state_class')
+        else:
+            # No unit, ensure no state_class for statistics
+            if hasattr(self, '_attr_state_class'):
+                delattr(self, '_attr_state_class')
         
         # Apply attributes template if configured
         attributes_template_str = self._sensor_config.get(CONF_ATTRIBUTES_TEMPLATE)

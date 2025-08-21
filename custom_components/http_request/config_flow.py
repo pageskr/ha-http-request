@@ -360,11 +360,23 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 }
             )
 
+        # Set description based on response type
+        response_type = self.config_entry.data.get(CONF_RESPONSE_TYPE, DEFAULT_RESPONSE_TYPE)
+        description_placeholders = {}
+        if response_type == "html":
+            description_placeholders["parsing_description"] = "HTML 응답을 파싱하기 위한 설정을 구성합니다."
+        elif response_type == "json":
+            description_placeholders["parsing_description"] = "JSON 응답을 파싱하기 위한 설정을 구성합니다."
+        elif response_type == "text":
+            description_placeholders["parsing_description"] = "Text 응답을 파싱하기 위한 설정을 구성합니다."
+        else:
+            description_placeholders["parsing_description"] = "센서의 파싱 설정을 수정합니다."
+            
         return self.async_show_form(
             step_id="sensor_parsing",
             data_schema=data_schema,
             errors=errors,
-            description_placeholders={"response_type": response_type},
+            description_placeholders=description_placeholders,
         )
 
     async def async_step_edit_sensor(
@@ -495,14 +507,22 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         
         data_schema = vol.Schema(schema_dict)
 
+        # Set description based on response type
+        description_placeholders = {}
+        if response_type == "html":
+            description_placeholders["parsing_description"] = "HTML 응답을 파싱하기 위한 설정을 구성합니다."
+        elif response_type == "json":
+            description_placeholders["parsing_description"] = "JSON 응답을 파싱하기 위한 설정을 구성합니다."
+        elif response_type == "text":
+            description_placeholders["parsing_description"] = "Text 응답을 파싱하기 위한 설정을 구성합니다."
+        else:
+            description_placeholders["parsing_description"] = "센서의 파싱 설정을 수정합니다."
+
         return self.async_show_form(
             step_id="edit_sensor_details",
             data_schema=data_schema,
             errors=errors,
-            description_placeholders={
-                "response_type": response_type,
-                "sensor_name": sensor_name,
-            },
+            description_placeholders=description_placeholders,
         )
 
     async def async_step_remove_sensor(

@@ -29,13 +29,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     # Create coordinator
     coordinator = HttpRequestDataUpdateCoordinator(hass, entry)
-    await coordinator.async_config_entry_first_refresh()
-    
+    # Store coordinator first before refreshing
     hass.data[DOMAIN][entry.entry_id] = {
         "entry": entry,
         "sensors": {},
         "coordinator": coordinator,
     }
+    
+    # Now refresh the coordinator
+    await coordinator.async_refresh()
+
 
     # 서비스 타입으로 디바이스 등록
     device_registry = dr.async_get(hass)
