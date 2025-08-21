@@ -245,6 +245,7 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         self._text_total_count = 0  # Total count of text matches
         self._custom_attributes = {}
         self._last_update = None  # Last sensor update time
+        self._state_restored = False  # Flag to check if state has been restored
 
     @property
     def native_value(self) -> Any:
@@ -304,6 +305,13 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         """Update the sensor."""
         await super().async_update()
         
+        # Try to restore the sensor's last state value on first update
+        if not self._state_restored and self.entity_id:
+            state = self.hass.states.get(self.entity_id)
+            if state and state.state not in ["unknown", "unavailable", None]:
+                self._last_valid_state_value = state.state
+            self._state_restored = True
+        
         if self.coordinator.data is None:
             if not self._sensor_config.get(CONF_KEEP_LAST_VALUE, False):
                 self._parsed_value = None
@@ -316,14 +324,20 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         response_data = self.coordinator.data
         
         # Store original parsed values for templates
-        json_value = None
-        html_value = None
-        text_value = None
+        json_full = None  # Full JSON response
+        json_value = None  # JSON path result
+        html_full = None  # Full HTML response
+        html_value = None  # Selected HTML element value
+        text_full = None  # Full text response
+        text_value = None  # Text matches or raw text
         
         # Parse based on response type
         if self.coordinator.response_type == "json":
+            # Store full JSON response
+            json_full = response_data.get("json") or response_data.get("text")
+            # Parse JSON path if specified
             json_value = parse_json(
-                response_data.get("json") or response_data.get("text"),
+                json_full,
                 self._sensor_config.get(CONF_JSON_PATH)
             )
             value = json_value
@@ -331,28 +345,32 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             html_value_type = self._sensor_config.get(CONF_HTML_VALUE_TYPE, "value")
             attr_name = self._sensor_config.get(CONF_HTML_ATTR_NAME)
             
-            # Get the full HTML content (entire response) for template variable
-            html_value = response_data.get("text", "")  # Full HTML response for template variable
+            # Store full HTML response
+            html_full = response_data.get("text", "")
             
             # Get the outer HTML of selected element for response_html attribute
             selected_html = parse_html_full(
-                response_data.get("text", ""),
+                html_full,
                 self._sensor_config.get(CONF_HTML_SELECTOR, "")
             )
             self._response_html = selected_html  # Outer HTML of selected element
             
             # Parse value based on value type for sensor state
-            value = parse_html(
-                response_data.get("text", ""),
+            html_value = parse_html(
+                html_full,
                 self._sensor_config.get(CONF_HTML_SELECTOR, ""),
                 html_value_type,
                 attr_name
             )
+            value = html_value
         elif self.coordinator.response_type == "text":
+            # Store full text response
+            text_full = response_data.get("text", "")
+            
             if regex := self._sensor_config.get(CONF_TEXT_REGEX):
                 # Get ALL matches for template variable
                 all_matches = parse_text_all(
-                    response_data.get("text", ""),
+                    text_full,
                     regex,
                     None  # No limit for template variable
                 )
@@ -367,11 +385,11 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                     self._text_matches = all_matches
                 
                 # Get first match for sensor value
-                value = all_matches[0] if all_matches else None
-                text_value = all_matches  # All matches for template variable
+                text_value = all_matches[0] if all_matches else None
+                value = text_value
             else:
-                value = response_data.get("text")
-                text_value = value
+                text_value = text_full
+                value = text_value
                 self._text_matches = None
                 self._text_total_count = 0
         else:
@@ -381,10 +399,10 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         template_str = self._sensor_config.get(CONF_VALUE_TEMPLATE)
         if template_str:
             template_vars = {
-                "value": value,  # Keep for backward compatibility
-                "json": json_value,  # JSON path result
-                "html": html_value,  # HTML selector result
-                "text": text_value,  # Text regex matches or raw text
+                "value": value,  # Current parsed value (for backward compatibility)
+                "json": json_full,  # Full JSON response
+                "html": html_full,  # Full HTML response
+                "text": text_full,  # Full text response
                 "response": response_data.get("text", ""),  # Raw response
                 "status": response_data.get("status"),
             }
@@ -452,10 +470,10 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         attributes_template_str = self._sensor_config.get(CONF_ATTRIBUTES_TEMPLATE)
         if attributes_template_str:
             template_vars = {
-                "value": self._parsed_value,  # Keep for backward compatibility
-                "json": json_value,  # JSON path result
-                "html": html_value,  # HTML selector result
-                "text": text_value,  # Text regex matches or raw text
+                "value": value,  # Current parsed value (for backward compatibility)
+                "json": json_full,  # Full JSON response
+                "html": html_full,  # Full HTML response
+                "text": text_full,  # Full text response
                 "response": response_data.get("text", ""),  # Raw response
                 "status": response_data.get("status"),
             }

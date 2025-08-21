@@ -35,6 +35,7 @@ from .const import (
     CONF_SENSOR_NAME,
     CONF_ATTRIBUTES_TEMPLATE,
     CONF_KEEP_LAST_VALUE,
+    CONF_RESET_SETTINGS,
     DEFAULT_HTML_ATTR,
     DEFAULT_METHOD,
     DEFAULT_NAME,
@@ -422,17 +423,43 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 new_data = dict(self.config_entry.data)
                 sensors = new_data.get("sensors", [])
                 
+                # Check if reset settings is enabled
+                reset_settings = user_input.pop(CONF_RESET_SETTINGS, False)
+                
                 # Update the sensor with new values
                 updated_sensor = {
                     "name": user_input.get(CONF_SENSOR_NAME, self.sensor_to_edit["name"]),
                 }
                 
-                # Add only non-empty fields from user input
-                for key, value in user_input.items():
-                    if key != CONF_SENSOR_NAME:
-                        if value != "" and not (isinstance(value, str) and value.strip() == ""):
-                            updated_sensor[key] = value
-                        # If value is empty and field existed before, it will be removed by not including it
+                # If reset settings is enabled, only keep name and essential fields
+                if reset_settings:
+                    # Add only essential fields based on response type
+                    response_type = self.config_entry.data.get(CONF_RESPONSE_TYPE, DEFAULT_RESPONSE_TYPE)
+                    if response_type == "json":
+                        # For JSON, only keep json_path if provided
+                        if user_input.get(CONF_JSON_PATH):
+                            updated_sensor[CONF_JSON_PATH] = user_input[CONF_JSON_PATH]
+                    elif response_type == "html":
+                        # For HTML, keep selector and value type
+                        updated_sensor[CONF_HTML_SELECTOR] = user_input.get(CONF_HTML_SELECTOR, "")
+                        updated_sensor[CONF_HTML_VALUE_TYPE] = user_input.get(CONF_HTML_VALUE_TYPE, "value")
+                        if user_input.get(CONF_HTML_ATTR_NAME):
+                            updated_sensor[CONF_HTML_ATTR_NAME] = user_input[CONF_HTML_ATTR_NAME]
+                    elif response_type == "text":
+                        # For text, keep regex and group count if provided
+                        if user_input.get(CONF_TEXT_REGEX):
+                            updated_sensor[CONF_TEXT_REGEX] = user_input[CONF_TEXT_REGEX]
+                            updated_sensor[CONF_TEXT_GROUP_COUNT] = user_input.get(CONF_TEXT_GROUP_COUNT, DEFAULT_TEXT_GROUP_COUNT)
+                    # Keep last value setting if checked
+                    if user_input.get(CONF_KEEP_LAST_VALUE):
+                        updated_sensor[CONF_KEEP_LAST_VALUE] = True
+                else:
+                    # Normal update - add only non-empty fields
+                    for key, value in user_input.items():
+                        if key != CONF_SENSOR_NAME:
+                            if value != "" and not (isinstance(value, str) and value.strip() == ""):
+                                updated_sensor[key] = value
+                            # If value is empty and field existed before, it will be removed by not including it
                 
                 sensors[self.sensor_index_to_edit] = updated_sensor
                 new_data["sensors"] = sensors
@@ -463,6 +490,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
                 vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=self.sensor_to_edit.get(CONF_UNIT_OF_MEASUREMENT, "")): str,
                 vol.Optional(CONF_KEEP_LAST_VALUE, default=self.sensor_to_edit.get(CONF_KEEP_LAST_VALUE, False)): bool,
+                vol.Optional(CONF_RESET_SETTINGS, default=False): bool,
             })
         elif response_type == "html":
             schema_dict.update({
@@ -473,6 +501,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
                 vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=self.sensor_to_edit.get(CONF_UNIT_OF_MEASUREMENT, "")): str,
                 vol.Optional(CONF_KEEP_LAST_VALUE, default=self.sensor_to_edit.get(CONF_KEEP_LAST_VALUE, False)): bool,
+                vol.Optional(CONF_RESET_SETTINGS, default=False): bool,
             })
         elif response_type == "text":
             schema_dict.update({
@@ -484,6 +513,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
                 vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=self.sensor_to_edit.get(CONF_UNIT_OF_MEASUREMENT, "")): str,
                 vol.Optional(CONF_KEEP_LAST_VALUE, default=self.sensor_to_edit.get(CONF_KEEP_LAST_VALUE, False)): bool,
+                vol.Optional(CONF_RESET_SETTINGS, default=False): bool,
             })
         else:
             schema_dict.update({
@@ -491,6 +521,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
                 vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=self.sensor_to_edit.get(CONF_UNIT_OF_MEASUREMENT, "")): str,
                 vol.Optional(CONF_KEEP_LAST_VALUE, default=self.sensor_to_edit.get(CONF_KEEP_LAST_VALUE, False)): bool,
+                vol.Optional(CONF_RESET_SETTINGS, default=False): bool,
             })
         
         data_schema = vol.Schema(schema_dict)

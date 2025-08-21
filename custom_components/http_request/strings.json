@@ -82,7 +82,8 @@
           "value_template": "값 템플릿 (Jinja2)",
           "attributes_template": "속성 템플릿 (JSON)",
           "unit_of_measurement": "단위",
-          "keep_last_value": "기존 값 유지"
+          "keep_last_value": "기존 값 유지",
+          "reset_settings": "설정 초기화"
         }
       },
       "edit_sensor": {
@@ -106,7 +107,8 @@
           "value_template": "값 템플릿 (Jinja2)",
           "attributes_template": "속성 템플릿 (JSON)",
           "unit_of_measurement": "단위",
-          "keep_last_value": "기존 값 유지"
+          "keep_last_value": "기존 값 유지",
+          "reset_settings": "설정 초기화"
         }
       },
       "remove_sensor": {

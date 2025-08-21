@@ -54,3 +54,6 @@ HTML_VALUE_TYPES: Final = ["value", "attribute", "html"]
 
 # Attributes template
 CONF_ATTRIBUTES_TEMPLATE: Final = "attributes_template"
+
+# Reset settings
+CONF_RESET_SETTINGS: Final = "reset_settings"
