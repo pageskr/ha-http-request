@@ -384,11 +384,12 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                 else:
                     self._text_matches = all_matches
                 
-                # Get first match for sensor value
-                text_value = all_matches[0] if all_matches else None
-                value = text_value
+                # Set text_value to ALL matches (entire array)
+                text_value = all_matches  # All regex matches as array
+                # Set value to first match for default sensor state
+                value = all_matches[0] if all_matches else None
             else:
-                text_value = text_full
+                text_value = None  # No regex, so no matches array
                 value = text_full  # Use full text as value when no regex
                 self._text_matches = None
                 self._text_total_count = 0
@@ -478,7 +479,11 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             elif self.coordinator.response_type == "html":
                 original_value = html_value
             elif self.coordinator.response_type == "text":
-                original_value = text_value
+                # For text type, use the matches array if regex is used
+                if self._sensor_config.get(CONF_TEXT_REGEX):
+                    original_value = text_value  # Array of all matches
+                else:
+                    original_value = text_full  # Full text when no regex
             else:
                 original_value = response_data.get("text")
             
