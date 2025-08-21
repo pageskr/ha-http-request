@@ -389,7 +389,7 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                 value = text_value
             else:
                 text_value = text_full
-                value = text_value
+                value = text_full  # Use full text as value when no regex
                 self._text_matches = None
                 self._text_total_count = 0
         else:
@@ -398,8 +398,11 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         # Apply value template if configured
         template_str = self._sensor_config.get(CONF_VALUE_TEMPLATE)
         if template_str:
+            # Store original parsed value for template
+            original_value = value
+            
             template_vars = {
-                "value": value,  # Current parsed value (for backward compatibility)
+                "value": original_value,  # Original parsed value (for backward compatibility)
                 "json": json_full,  # Full JSON response
                 "html": html_full,  # Full HTML response
                 "text": text_full,  # Full text response
@@ -469,8 +472,18 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         # Apply attributes template if configured
         attributes_template_str = self._sensor_config.get(CONF_ATTRIBUTES_TEMPLATE)
         if attributes_template_str:
+            # Determine original parsed value based on response type
+            if self.coordinator.response_type == "json":
+                original_value = json_value
+            elif self.coordinator.response_type == "html":
+                original_value = html_value
+            elif self.coordinator.response_type == "text":
+                original_value = text_value
+            else:
+                original_value = response_data.get("text")
+            
             template_vars = {
-                "value": value,  # Current parsed value (for backward compatibility)
+                "value": original_value,  # Original parsed value (for backward compatibility)
                 "json": json_full,  # Full JSON response
                 "html": html_full,  # Full HTML response
                 "text": text_full,  # Full text response

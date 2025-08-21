@@ -443,8 +443,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         # For HTML, keep selector and value type
                         updated_sensor[CONF_HTML_SELECTOR] = user_input.get(CONF_HTML_SELECTOR, "")
                         updated_sensor[CONF_HTML_VALUE_TYPE] = user_input.get(CONF_HTML_VALUE_TYPE, "value")
-                        if user_input.get(CONF_HTML_ATTR_NAME):
-                            updated_sensor[CONF_HTML_ATTR_NAME] = user_input[CONF_HTML_ATTR_NAME]
+                        # HTML_ATTR_NAME is not kept when reset_settings is enabled
                     elif response_type == "text":
                         # For text, keep regex and group count if provided
                         if user_input.get(CONF_TEXT_REGEX):
