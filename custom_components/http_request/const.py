@@ -50,7 +50,7 @@ DEFAULT_TEXT_GROUP_COUNT: Final = 10
 # Response types
 RESPONSE_TYPES: Final = ["json", "html", "text"]
 HTTP_METHODS: Final = ["GET", "POST", "PUT", "DELETE", "PATCH"]
-HTML_VALUE_TYPES: Final = ["value", "attribute", "html"]
+HTML_VALUE_TYPES: Final = ["value", "attribute", "html", "outerhtml"]
 
 # Attributes template
 CONF_ATTRIBUTES_TEMPLATE: Final = "attributes_template"

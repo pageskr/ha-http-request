@@ -240,7 +240,6 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         self._parsed_value = None
         self._last_valid_value = None  # For keeping last value
         self._last_valid_state_value = None  # For keeping sensor's last state value
-        self._response_html = None
         self._text_matches = None
         self._text_total_count = 0  # Total count of text matches
         self._custom_attributes = {}
@@ -265,10 +264,6 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             "sensor_name": self._sensor_config.get("name", DEFAULT_SENSOR_NAME),
             "sensor_update": dt_util.now(),  # Always update to current time
         }
-        
-        # Add response HTML for HTML type
-        if self.coordinator.response_type == "html" and self._response_html:
-            attributes["response_html"] = self._response_html
         
         # Add text matches for text type with regex
         if self.coordinator.response_type == "text":
@@ -315,7 +310,6 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         if self.coordinator.data is None:
             if not self._sensor_config.get(CONF_KEEP_LAST_VALUE, False):
                 self._parsed_value = None
-                self._response_html = None
                 self._text_matches = None
                 self._text_total_count = 0
                 self._custom_attributes = {}
@@ -347,13 +341,6 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             
             # Store full HTML response
             html_full = response_data.get("text", "")
-            
-            # Get the outer HTML of selected element for response_html attribute
-            selected_html = parse_html_full(
-                html_full,
-                self._sensor_config.get(CONF_HTML_SELECTOR, "")
-            )
-            self._response_html = selected_html  # Outer HTML of selected element
             
             # Parse value based on value type for sensor state
             html_value = parse_html(

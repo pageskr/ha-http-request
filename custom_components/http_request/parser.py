@@ -106,6 +106,9 @@ def parse_html(html_content: str, selector: str, value_type: str = "value", attr
         elif value_type == "html":
             # Return inner HTML
             return ''.join(str(child) for child in element.children)
+        elif value_type == "outerhtml":
+            # Return outer HTML (including the element itself)
+            return str(element)
         else:
             # Default to text
             return element.get_text(strip=True)

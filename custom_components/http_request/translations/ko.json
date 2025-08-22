@@ -144,7 +144,8 @@
       "options": {
         "value": "텍스트 값",
         "attribute": "속성 값",
-        "html": "HTML 내용"
+        "html": "HTML 내용",
+        "outerhtml": "outerHTML 내용"
       }
     }
   }
