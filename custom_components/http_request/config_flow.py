@@ -12,6 +12,11 @@ from homeassistant.const import CONF_NAME, CONF_UNIT_OF_MEASUREMENT
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
 from .const import (
     CONF_BODY,
@@ -136,9 +141,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_URL): str,
                 vol.Optional(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL): bool,
                 vol.Required(CONF_METHOD, default=DEFAULT_METHOD): vol.In(HTTP_METHODS),
-                vol.Optional(CONF_HEADERS, default=""): str,
-                vol.Optional(CONF_PARAMS, default=""): str,
-                vol.Optional(CONF_BODY, default=""): str,
+                vol.Optional(CONF_HEADERS, default=""): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
+                vol.Optional(CONF_PARAMS, default=""): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
+                vol.Optional(CONF_BODY, default=""): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
                 vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=300)
                 ),
@@ -229,9 +240,15 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required(CONF_URL, default=data.get(CONF_URL, "")): str,
                 vol.Optional(CONF_VERIFY_SSL, default=data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL)): bool,
                 vol.Required(CONF_METHOD, default=data.get(CONF_METHOD, DEFAULT_METHOD)): vol.In(HTTP_METHODS),
-                vol.Optional(CONF_HEADERS, default=data.get(CONF_HEADERS, "")): str,
-                vol.Optional(CONF_PARAMS, default=data.get(CONF_PARAMS, "")): str,
-                vol.Optional(CONF_BODY, default=data.get(CONF_BODY, "")): str,
+                vol.Optional(CONF_HEADERS, default=data.get(CONF_HEADERS, "")): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
+                vol.Optional(CONF_PARAMS, default=data.get(CONF_PARAMS, "")): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
+                vol.Optional(CONF_BODY, default=data.get(CONF_BODY, "")): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
                 vol.Optional(CONF_TIMEOUT, default=data.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=300)
                 ),
@@ -318,8 +335,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             data_schema = vol.Schema(
                 {
                     vol.Optional(CONF_JSON_PATH, default=""): str,
-                    vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
-                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_VALUE_TEMPLATE, default=""): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                    ),
+                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                    ),
                     vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=""): str,
                     vol.Optional(CONF_KEEP_LAST_VALUE, default=False): bool,
                 }
@@ -330,8 +351,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Required(CONF_HTML_SELECTOR): str,
                     vol.Required(CONF_HTML_VALUE_TYPE, default="value"): vol.In(HTML_VALUE_TYPES),
                     vol.Optional(CONF_HTML_ATTR_NAME, default=""): str,
-                    vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
-                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_VALUE_TEMPLATE, default=""): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                    ),
+                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                    ),
                     vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=""): str,
                     vol.Optional(CONF_KEEP_LAST_VALUE, default=False): bool,
                 }
@@ -343,8 +368,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(CONF_TEXT_GROUP_COUNT, default=DEFAULT_TEXT_GROUP_COUNT): vol.All(
                         vol.Coerce(int), vol.Range(min=1, max=50)
                     ),
-                    vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
-                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_VALUE_TEMPLATE, default=""): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                    ),
+                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                    ),
                     vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=""): str,
                     vol.Optional(CONF_KEEP_LAST_VALUE, default=False): bool,
                 }
@@ -352,8 +381,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         else:
             data_schema = vol.Schema(
                 {
-                    vol.Optional(CONF_VALUE_TEMPLATE, default=""): str,
-                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): str,
+                    vol.Optional(CONF_VALUE_TEMPLATE, default=""): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                    ),
+                    vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=""): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                    ),
                     vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=""): str,
                     vol.Optional(CONF_KEEP_LAST_VALUE, default=False): bool,
                 }
@@ -485,8 +518,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if response_type == "json":
             schema_dict.update({
                 vol.Optional(CONF_JSON_PATH, default=self.sensor_to_edit.get(CONF_JSON_PATH, "")): str,
-                vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
-                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
+                vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
+                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
                 vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=self.sensor_to_edit.get(CONF_UNIT_OF_MEASUREMENT, "")): str,
                 vol.Optional(CONF_KEEP_LAST_VALUE, default=self.sensor_to_edit.get(CONF_KEEP_LAST_VALUE, False)): bool,
                 vol.Optional(CONF_RESET_SETTINGS, default=False): bool,
@@ -496,8 +533,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required(CONF_HTML_SELECTOR, default=self.sensor_to_edit.get(CONF_HTML_SELECTOR, "")): str,
                 vol.Required(CONF_HTML_VALUE_TYPE, default=self.sensor_to_edit.get(CONF_HTML_VALUE_TYPE, "value")): vol.In(HTML_VALUE_TYPES),
                 vol.Optional(CONF_HTML_ATTR_NAME, default=self.sensor_to_edit.get(CONF_HTML_ATTR_NAME, "")): str,
-                vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
-                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
+                vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
+                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
                 vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=self.sensor_to_edit.get(CONF_UNIT_OF_MEASUREMENT, "")): str,
                 vol.Optional(CONF_KEEP_LAST_VALUE, default=self.sensor_to_edit.get(CONF_KEEP_LAST_VALUE, False)): bool,
                 vol.Optional(CONF_RESET_SETTINGS, default=False): bool,
@@ -508,16 +549,24 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(CONF_TEXT_GROUP_COUNT, default=self.sensor_to_edit.get(CONF_TEXT_GROUP_COUNT, DEFAULT_TEXT_GROUP_COUNT)): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=50)
                 ),
-                vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
-                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
+                vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
+                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
                 vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=self.sensor_to_edit.get(CONF_UNIT_OF_MEASUREMENT, "")): str,
                 vol.Optional(CONF_KEEP_LAST_VALUE, default=self.sensor_to_edit.get(CONF_KEEP_LAST_VALUE, False)): bool,
                 vol.Optional(CONF_RESET_SETTINGS, default=False): bool,
             })
         else:
             schema_dict.update({
-                vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): str,
-                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): str,
+                vol.Optional(CONF_VALUE_TEMPLATE, default=self.sensor_to_edit.get(CONF_VALUE_TEMPLATE, "")): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
+                vol.Optional(CONF_ATTRIBUTES_TEMPLATE, default=self.sensor_to_edit.get(CONF_ATTRIBUTES_TEMPLATE, "")): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.TEXT, multiline=True)
+                ),
                 vol.Optional(CONF_UNIT_OF_MEASUREMENT, default=self.sensor_to_edit.get(CONF_UNIT_OF_MEASUREMENT, "")): str,
                 vol.Optional(CONF_KEEP_LAST_VALUE, default=self.sensor_to_edit.get(CONF_KEEP_LAST_VALUE, False)): bool,
                 vol.Optional(CONF_RESET_SETTINGS, default=False): bool,
