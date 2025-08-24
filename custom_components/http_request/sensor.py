@@ -166,7 +166,8 @@ class HttpRequestDataUpdateCoordinator(DataUpdateCoordinator):
                     # Get response headers
                     response_headers = response.headers
                     content_type = response.content_type
-                    content_length = response.headers.get("Content-Length")
+                    # Calculate actual content length from response text
+                    content_length = len(text.encode('utf-8')) if text else 0
                     
                     # Try to parse as JSON if needed
                     json_data = None
@@ -186,7 +187,7 @@ class HttpRequestDataUpdateCoordinator(DataUpdateCoordinator):
                         "status": status,
                         "headers": response_headers,
                         "content_type": content_type,
-                        "content_length": int(content_length) if content_length else None,
+                        "content_length": content_length,
                     }
                     
         except aiohttp.ClientError as err:
@@ -317,47 +318,50 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         
         response_data = self.coordinator.data
         
+        # Get raw response text for 'response' variable
+        response_text = response_data.get("text", "")
+        
+        # Parse response as JSON if possible for 'response' variable
+        response_value = response_text
+        if response_text:
+            try:
+                response_value = json.loads(response_text)
+            except json.JSONDecodeError:
+                # Keep as text if not valid JSON
+                response_value = response_text
+        
         # Store original parsed values for templates
-        json_full = None  # Full JSON response
-        json_value = None  # JSON path result
-        html_full = None  # Full HTML response
-        html_value = None  # Selected HTML element value
-        text_full = None  # Full text response
-        text_value = None  # Text matches or raw text
+        value = None  # The main value variable
+        value_json = None  # JSON parsed version of value
         
         # Parse based on response type
         if self.coordinator.response_type == "json":
-            # Store full JSON response
-            json_full = response_data.get("json") or response_data.get("text")
-            # Parse JSON path if specified
-            json_value = parse_json(
-                json_full,
-                self._sensor_config.get(CONF_JSON_PATH)
-            )
-            value = json_value
+            # For JSON sensor, parse JSON path if specified
+            if json_path := self._sensor_config.get(CONF_JSON_PATH):
+                # Extract value using JSON path
+                value = parse_json(response_value, json_path)
+                # Convert to text string
+                if value is not None:
+                    value = str(value) if not isinstance(value, str) else value
+            else:
+                # No JSON path, use full response as text
+                value = response_text
         elif self.coordinator.response_type == "html":
             html_value_type = self._sensor_config.get(CONF_HTML_VALUE_TYPE, "value")
             attr_name = self._sensor_config.get(CONF_HTML_ATTR_NAME)
             
-            # Store full HTML response
-            html_full = response_data.get("text", "")
-            
             # Parse value based on value type for sensor state
-            html_value = parse_html(
-                html_full,
+            value = parse_html(
+                response_text,
                 self._sensor_config.get(CONF_HTML_SELECTOR, ""),
                 html_value_type,
                 attr_name
             )
-            value = html_value
         elif self.coordinator.response_type == "text":
-            # Store full text response
-            text_full = response_data.get("text", "")
-            
             if regex := self._sensor_config.get(CONF_TEXT_REGEX):
                 # Get ALL matches for template variable
                 all_matches = parse_text_all(
-                    text_full,
+                    response_text,
                     regex,
                     None  # No limit for template variable
                 )
@@ -371,17 +375,29 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                 else:
                     self._text_matches = all_matches
                 
-                # Set text_value to ALL matches (entire array)
-                text_value = all_matches  # All regex matches as array
-                # Set value to first match for default sensor state
-                value = all_matches[0] if all_matches else None
+                # Set value to ALL matches as text array for template
+                value = all_matches  # All regex matches as array
             else:
-                text_value = None  # No regex, so no matches array
-                value = text_full  # Use full text as value when no regex
+                # No regex, use full text as value
+                value = response_text
                 self._text_matches = None
                 self._text_total_count = 0
         else:
-            value = response_data.get("text")
+            value = response_text
+        
+        # Check if value is JSON parseable for value_json variable
+        if value is not None:
+            try:
+                if isinstance(value, str):
+                    value_json = json.loads(value)
+                elif isinstance(value, list):
+                    # For arrays, try to parse as JSON string representation
+                    value_str = json.dumps(value)
+                    value_json = json.loads(value_str)
+                else:
+                    value_json = None
+            except (json.JSONDecodeError, TypeError):
+                value_json = None
         
         # Apply value template if configured
         template_str = self._sensor_config.get(CONF_VALUE_TEMPLATE)
@@ -390,11 +406,9 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             original_value = value
             
             template_vars = {
-                "value": original_value,  # Original parsed value (for backward compatibility)
-                "json": json_full,  # Full JSON response
-                "html": html_full,  # Full HTML response
-                "text": text_full,  # Full text response
-                "response": response_data.get("text", ""),  # Raw response
+                "response": response_value,  # Response in JSON structure if parseable, otherwise text
+                "value": original_value,  # Parsed value based on sensor type
+                "value_json": value_json,  # JSON parsed version of value if available
                 "status": response_data.get("status"),
             }
             try:
@@ -460,26 +474,22 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         # Apply attributes template if configured
         attributes_template_str = self._sensor_config.get(CONF_ATTRIBUTES_TEMPLATE)
         if attributes_template_str:
-            # Determine original parsed value based on response type
-            if self.coordinator.response_type == "json":
-                original_value = json_value
-            elif self.coordinator.response_type == "html":
-                original_value = html_value
-            elif self.coordinator.response_type == "text":
-                # For text type, use the matches array if regex is used
-                if self._sensor_config.get(CONF_TEXT_REGEX):
-                    original_value = text_value  # Array of all matches
-                else:
-                    original_value = text_full  # Full text when no regex
+            # Re-calculate value_json after template processing
+            if self._parsed_value is not None:
+                try:
+                    if isinstance(self._parsed_value, str):
+                        current_value_json = json.loads(self._parsed_value)
+                    else:
+                        current_value_json = None
+                except (json.JSONDecodeError, TypeError):
+                    current_value_json = None
             else:
-                original_value = response_data.get("text")
+                current_value_json = None
             
             template_vars = {
-                "value": original_value,  # Original parsed value (for backward compatibility)
-                "json": json_full,  # Full JSON response
-                "html": html_full,  # Full HTML response
-                "text": text_full,  # Full text response
-                "response": response_data.get("text", ""),  # Raw response
+                "response": response_value,  # Response in JSON structure if parseable, otherwise text
+                "value": value,  # Original parsed value before template
+                "value_json": value_json,  # JSON parsed version of original value
                 "status": response_data.get("status"),
             }
             self._custom_attributes = await render_attributes_template(

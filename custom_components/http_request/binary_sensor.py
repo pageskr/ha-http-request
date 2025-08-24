@@ -106,9 +106,13 @@ class HttpRequestInfoEntity(CoordinatorEntity, BinarySensorEntity):
         if "content_type" in response_data:
             attributes["content_type"] = response_data["content_type"]
         
-        # Add response size if available
+        # Add response size (actual calculated size)
         if "content_length" in response_data:
-            attributes["content_length"] = response_data["content_length"]
+            content_length = response_data["content_length"]
+            if content_length is not None and content_length > 0:
+                attributes["content_length"] = content_length
+            else:
+                attributes["content_length"] = "알수없음"
         
         return attributes
 
