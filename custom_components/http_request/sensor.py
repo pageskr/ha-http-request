@@ -67,24 +67,29 @@ async def async_setup_entry(
 ) -> None:
     """Set up the HTTP Request sensor."""
     # Check if coordinator already exists (created by binary_sensor)
-    if "coordinator" in hass.data[DOMAIN][config_entry.entry_id]:
+    if hass.data[DOMAIN][config_entry.entry_id]["coordinator"] is not None:
         coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
     else:
         # Create new coordinator if not exists
         coordinator = HttpRequestDataUpdateCoordinator(hass, config_entry)
         hass.data[DOMAIN][config_entry.entry_id]["coordinator"] = coordinator
+        # Do initial refresh
+        await coordinator.async_config_entry_first_refresh()
     
     # Get sensors configuration
     sensors_config = config_entry.data.get("sensors", [])
     
-    # Create sensor entities
-    sensors = []
-    for idx, sensor_config in enumerate(sensors_config):
-        sensors.append(
-            HttpRequestSensor(coordinator, config_entry, sensor_config, idx)
-        )
-    
-    async_add_entities(sensors, True)
+    # Create sensor entities only if there are sensors configured
+    if sensors_config:
+        sensors = []
+        for idx, sensor_config in enumerate(sensors_config):
+            sensors.append(
+                HttpRequestSensor(coordinator, config_entry, sensor_config, idx)
+            )
+        async_add_entities(sensors, True)
+    else:
+        # No sensors configured, just pass empty list
+        async_add_entities([], True)
 
 
 class HttpRequestDataUpdateCoordinator(DataUpdateCoordinator):

@@ -227,9 +227,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     self.config_entry, data=new_data
                 )
                 
-                # Force refresh after settings change
-                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
-                
                 return self.async_create_entry(title="", data={})
 
         data = self.config_entry.data
@@ -322,9 +319,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 self.hass.config_entries.async_update_entry(
                     self.config_entry, data=new_data
                 )
-                
-                # Reload the integration to add the new sensor
-                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
                 
                 return self.async_create_entry(title="", data={})
 
@@ -501,9 +495,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     self.config_entry, data=new_data
                 )
                 
-                # Reload the integration
-                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
-                
                 return self.async_create_entry(title="", data={})
 
         # Build schema based on response type with current values
@@ -609,8 +600,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 self.hass.config_entries.async_update_entry(
                     self.config_entry, data=new_data
                 )
-                
-                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
                 
                 return self.async_create_entry(title="", data={})
         

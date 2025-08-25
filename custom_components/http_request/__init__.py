@@ -27,19 +27,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up HTTP Request from a config entry."""
     hass.data.setdefault(DOMAIN, {})
     
-    # Create coordinator
-    coordinator = HttpRequestDataUpdateCoordinator(hass, entry)
-    # Store coordinator first before refreshing
+    # Initialize entry data structure
     hass.data[DOMAIN][entry.entry_id] = {
         "entry": entry,
         "sensors": {},
-        "coordinator": coordinator,
+        "coordinator": None,
     }
     
-    # Now refresh the coordinator
-    await coordinator.async_refresh()
-
-
     # 서비스 타입으로 디바이스 등록
     device_registry = dr.async_get(hass)
     service_name = entry.data.get("service_name", "HTTP Request")
@@ -53,8 +47,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry_type=dr.DeviceEntryType.SERVICE,  # 서비스 타입으로 명시
     )
     
+    # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     
+    # Add update listener
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     
     return True
@@ -72,5 +68,4 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""
-    await async_unload_entry(hass, entry)
-    await async_setup_entry(hass, entry)
+    await hass.config_entries.async_reload(entry.entry_id)
