@@ -344,10 +344,12 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
             # For JSON sensor, parse JSON path if specified
             if json_path := self._sensor_config.get(CONF_JSON_PATH):
                 # Extract value using JSON path
-                value = parse_json(response_value, json_path)
-                # Convert to text string
-                if value is not None:
-                    value = str(value) if not isinstance(value, str) else value
+                json_result = parse_json(response_value, json_path)
+                # Convert to string for value variable
+                if json_result is not None:
+                    value = json.dumps(json_result) if not isinstance(json_result, str) else json_result
+                else:
+                    value = None
             else:
                 # No JSON path, use full response as text
                 value = response_text
@@ -373,15 +375,15 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                 # Store total count
                 self._text_total_count = len(all_matches) if all_matches else 0
                 
-                # Get matches up to configured count for attribute
+                # Get matches up to configured count for attribute and state
                 group_count = self._sensor_config.get(CONF_TEXT_GROUP_COUNT, DEFAULT_TEXT_GROUP_COUNT)
                 if all_matches and len(all_matches) > group_count:
                     self._text_matches = all_matches[:group_count]
                 else:
                     self._text_matches = all_matches
                 
-                # Set value to ALL matches as text array for template
-                value = all_matches  # All regex matches as array
+                # Set value to ALL matches for template variable
+                value = all_matches  # All regex matches as array for template
             else:
                 # No regex, use full text as value
                 value = response_text
@@ -396,24 +398,28 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                 if isinstance(value, str):
                     value_json = json.loads(value)
                 elif isinstance(value, list):
-                    # For arrays, try to parse as JSON string representation
-                    value_str = json.dumps(value)
-                    value_json = json.loads(value_str)
+                    # For arrays, keep as is
+                    value_json = value
                 else:
                     value_json = None
             except (json.JSONDecodeError, TypeError):
                 value_json = None
         
+        # Determine default sensor state based on response type
+        if self.coordinator.response_type == "text" and self._sensor_config.get(CONF_TEXT_REGEX):
+            # For TEXT sensor with regex, use limited matches as state
+            default_state = self._text_matches  # Limited matches array
+        else:
+            # For other sensors, use the parsed value
+            default_state = value
+        
         # Apply value template if configured
         template_str = self._sensor_config.get(CONF_VALUE_TEMPLATE)
         if template_str:
-            # Store original parsed value for template
-            original_value = value
-            
             template_vars = {
                 "response": response_value,  # Response in JSON structure if parseable, otherwise text
-                "value": original_value,  # Parsed value based on sensor type
-                "value_json": value_json,  # JSON parsed version of value if available
+                "value": value,  # Parsed value based on sensor type (stays unchanged)
+                "value_json": value_json,  # JSON parsed version of value if available (stays unchanged)
                 "status": response_data.get("status"),
             }
             try:
@@ -428,34 +434,37 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
                     if template_result is None or template_str_lower in ["false", "none", "unknown", "unavailable"]:
                         # Template result is invalid and keep_last_value is enabled
                         if self._last_valid_state_value is not None:
-                            value = self._last_valid_state_value  # Keep sensor's last state value
+                            sensor_state = self._last_valid_state_value  # Keep sensor's last state value
                         else:
-                            value = template_result  # No previous state to keep
+                            sensor_state = template_result  # No previous state to keep
                     else:
-                        value = template_result
+                        sensor_state = template_result
                 else:
                     # Keep_last_value is not enabled, use template result as-is
-                    value = template_result
+                    sensor_state = template_result
             except Exception as e:
                 _LOGGER.debug("Template error: %s", e)
                 # If keep_last_value is enabled and template fails, keep sensor's last state value
                 if self._sensor_config.get(CONF_KEEP_LAST_VALUE, False):
                     if self._last_valid_state_value is not None:
-                        value = self._last_valid_state_value  # Keep sensor's last state value
+                        sensor_state = self._last_valid_state_value  # Keep sensor's last state value
                     else:
-                        value = None  # No previous state to keep
+                        sensor_state = None  # No previous state to keep
                 else:
                     # Keep_last_value is not enabled, set to None
-                    value = None
+                    sensor_state = None
+        else:
+            # No template, use default state
+            sensor_state = default_state
         
-        # Update parsed value
-        self._parsed_value = value
+        # Update parsed value (sensor state)
+        self._parsed_value = sensor_state
         
         # Store the current valid state value for next update
-        if value is not None:
-            value_str_lower = str(value).lower()
+        if sensor_state is not None:
+            value_str_lower = str(sensor_state).lower()
             if value_str_lower not in ["false", "none", "unknown", "unavailable"]:
-                self._last_valid_state_value = value
+                self._last_valid_state_value = sensor_state
         
         # Always update the last update time
         self._last_update = dt_util.now()
@@ -479,22 +488,11 @@ class HttpRequestSensor(CoordinatorEntity, SensorEntity):
         # Apply attributes template if configured
         attributes_template_str = self._sensor_config.get(CONF_ATTRIBUTES_TEMPLATE)
         if attributes_template_str:
-            # Re-calculate value_json after template processing
-            if self._parsed_value is not None:
-                try:
-                    if isinstance(self._parsed_value, str):
-                        current_value_json = json.loads(self._parsed_value)
-                    else:
-                        current_value_json = None
-                except (json.JSONDecodeError, TypeError):
-                    current_value_json = None
-            else:
-                current_value_json = None
-            
+            # Use the original value and value_json for attributes template
             template_vars = {
                 "response": response_value,  # Response in JSON structure if parseable, otherwise text
-                "value": value,  # Original parsed value before template
-                "value_json": value_json,  # JSON parsed version of original value
+                "value": value,  # Original parsed value (unchanged)
+                "value_json": value_json,  # JSON parsed version of original value (unchanged)
                 "status": response_data.get("status"),
             }
             self._custom_attributes = await render_attributes_template(
